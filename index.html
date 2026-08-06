@@ -82,10 +82,24 @@
   .rec-folder:hover{text-decoration:underline;}
   .rec-comment{font-size:12px;color:var(--ink);background:var(--bg);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;}
 
-  /* Filters */
-  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px;}
-  .filters select{font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;width:100%;}
-  .filters select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
+  /* Filters (side panel) */
+  .list-layout{display:flex;gap:16px;align-items:flex-start;}
+  .list-main{flex:1;min-width:0;}
+  .filter-panel{width:200px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;position:sticky;top:16px;}
+  .fgroup{margin-bottom:14px;}
+  .fgroup-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px;}
+  .fopt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);padding:4px 0;cursor:pointer;}
+  .fopt input{width:16px;height:16px;accent-color:var(--orange);cursor:pointer;flex-shrink:0;}
+  .fnote{font-size:12px;color:var(--muted);}
+  .fclear{width:100%;font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:var(--radius);padding:8px;cursor:pointer;}
+  .fclear:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .filter-toggle{display:none;width:100%;font-family:var(--font);font-size:13px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;cursor:pointer;margin-bottom:12px;}
+  @media(max-width:640px){
+    .list-layout{flex-direction:column;}
+    .filter-panel{width:100%;position:static;display:none;}
+    .filter-panel.open{display:block;}
+    .filter-toggle{display:block;}
+  }
 
   .page-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
   .page-title{font-size:16px;font-weight:600;color:var(--ink);}
@@ -321,36 +335,43 @@
 </div>
 
 <div class="list-body" id="tab-list" style="display:none">
-  <div class="list-bar">
-    <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys, tipas…)" oninput="applyFilters()">
-    <button class="btn-refresh" onclick="loadList()" title="Atnaujinti">⟳</button>
+  <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">Filtrai</button>
+  <div class="list-layout">
+    <aside class="filter-panel" id="filterPanel">
+      <div class="fgroup">
+        <div class="fgroup-title">Operacija</div>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Paruošimas" onchange="applyFilters()"> Paruošimas</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Mechaninis" onchange="applyFilters()"> Mechaninis</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Prieš suvirinimą" onchange="applyFilters()"> Prieš suvirinimą</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Suvirinimas" onchange="applyFilters()"> Suvirinimas</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Dažymas" onchange="applyFilters()"> Dažymas</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">OK / NOK</div>
+        <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Tik su NOK</label>
+        <label class="fopt"><input type="checkbox" data-g="oknok" value="ok" onchange="applyFilters()"> Tik OK (be NOK)</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Data</div>
+        <label class="fopt"><input type="checkbox" data-g="date" value="today" onchange="applyFilters()"> Šiandien</label>
+        <label class="fopt"><input type="checkbox" data-g="date" value="7" onchange="applyFilters()"> Paskutinės 7 d.</label>
+        <label class="fopt"><input type="checkbox" data-g="date" value="30" onchange="applyFilters()"> Paskutinės 30 d.</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Vartotojas</div>
+        <div id="f_users"><div class="fnote">—</div></div>
+      </div>
+      <button class="fclear" onclick="clearFilters()">Išvalyti filtrus</button>
+    </aside>
+    <div class="list-main">
+      <div class="list-bar">
+        <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys…)" oninput="applyFilters()">
+        <button class="btn-refresh" onclick="loadList()" title="Atnaujinti">⟳</button>
+      </div>
+      <div class="list-count" id="list_count"></div>
+      <div id="list_container"><div class="list-msg">—</div></div>
+    </div>
   </div>
-  <div class="filters">
-    <select id="f_op" onchange="applyFilters()">
-      <option value="">Visos operacijos</option>
-      <option value="Paruošimas">Paruošimas</option>
-      <option value="Mechaninis">Mechaninis</option>
-      <option value="Prieš suvirinimą">Prieš suvirinimą</option>
-      <option value="Suvirinimas">Suvirinimas</option>
-      <option value="Dažymas">Dažymas</option>
-    </select>
-    <select id="f_oknok" onchange="applyFilters()">
-      <option value="">OK / NOK: visi</option>
-      <option value="nok">Tik su NOK</option>
-      <option value="ok">Tik OK (be NOK)</option>
-    </select>
-    <select id="f_date" onchange="applyFilters()">
-      <option value="">Visos datos</option>
-      <option value="today">Šiandien</option>
-      <option value="7">Paskutinės 7 d.</option>
-      <option value="30">Paskutinės 30 d.</option>
-    </select>
-    <select id="f_user" onchange="applyFilters()">
-      <option value="">Visi vartotojai</option>
-    </select>
-  </div>
-  <div class="list-count" id="list_count"></div>
-  <div id="list_container"><div class="list-msg">—</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -647,36 +668,56 @@ function renderList(records){
 }
 
 function populateUserFilter(){
-  const sel = document.getElementById('f_user');
-  const cur = sel.value;
+  const box = document.getElementById('f_users');
+  const prev = new Set(getChecked('user'));
   const users = [...new Set(_allRecords.map(r => r.by).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'lt'));
-  sel.innerHTML = '<option value="">Visi vartotojai</option>' + users.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');
-  if(users.includes(cur)) sel.value = cur;
+  box.innerHTML = users.length
+    ? users.map(u=>`<label class="fopt"><input type="checkbox" data-g="user" value="${esc(u)}" ${prev.has(u)?'checked':''} onchange="applyFilters()"> ${esc(u)}</label>`).join('')
+    : '<div class="fnote">—</div>';
+}
+
+function getChecked(group){
+  return [...document.querySelectorAll(`.filter-panel input[data-g="${group}"]:checked`)].map(el => el.value);
 }
 
 function applyFilters(){
-  const q  = document.getElementById('list_search').value.trim().toLowerCase();
-  const op = document.getElementById('f_op').value;
-  const on = document.getElementById('f_oknok').value;
-  const dt = document.getElementById('f_date').value;
-  const us = document.getElementById('f_user').value;
+  const q     = document.getElementById('list_search').value.trim().toLowerCase();
+  const ops   = getChecked('op');
+  const oknok = getChecked('oknok');
+  const dates = getChecked('date');
+  const users = getChecked('user');
   const now = new Date();
   const list = _allRecords.filter(r => {
-    if(op && r.busena !== op) return false;
-    if(us && r.by !== us) return false;
-    if(on === 'nok' && !(Number(r.nok) > 0)) return false;
-    if(on === 'ok'  && !(Number(r.nok) === 0 && Number(r.ok) > 0)) return false;
-    if(dt){
+    if(ops.length   && !ops.includes(r.busena)) return false;       // OR within Operacija
+    if(users.length && !users.includes(r.by))   return false;       // OR within Vartotojas
+    if(oknok.length && !oknok.some(v =>
+        (v === 'nok' && Number(r.nok) > 0) ||
+        (v === 'ok'  && Number(r.nok) === 0 && Number(r.ok) > 0))) return false;
+    if(dates.length){
       if(!r.created) return false;
       const d = new Date(r.created);
-      if(dt === 'today'){ if(d.toDateString() !== now.toDateString()) return false; }
-      else { const cutoff = new Date(now.getTime() - Number(dt) * 864e5); if(d < cutoff) return false; }
+      const ok = dates.some(v => v === 'today'
+        ? d.toDateString() === now.toDateString()
+        : d >= new Date(now.getTime() - Number(v) * 864e5));
+      if(!ok) return false;
     }
     if(q && ![r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
         .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
     return true;
   });
   renderList(list);
+  const n = ops.length + oknok.length + dates.length + users.length;
+  document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
+}
+
+function clearFilters(){
+  document.querySelectorAll('.filter-panel input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('list_search').value = '';
+  applyFilters();
+}
+
+function toggleFilters(){
+  document.getElementById('filterPanel').classList.toggle('open');
 }
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }

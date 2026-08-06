@@ -51,6 +51,33 @@
   .btn-logout{background:none;border:none;color:var(--header-muted);font-size:12px;cursor:pointer;padding:2px 4px;}
   .btn-logout:hover{color:var(--header-text);}
 
+  /* Tabs */
+  .tabs{display:flex;gap:2px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;}
+  .tab{font-family:var(--font);font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:12px 16px;cursor:pointer;}
+  .tab:hover{color:var(--ink);}
+  .tab.active{color:var(--orange-dim);border-bottom-color:var(--orange);}
+
+  /* List view */
+  .list-body{max-width:760px;margin:22px auto 0;padding:0 20px;}
+  .list-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .list-bar input{flex:1;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;}
+  .list-bar input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
+  .list-count{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .btn-refresh{width:36px;height:36px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;}
+  .btn-refresh:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .list-msg{text-align:center;color:var(--muted);font-size:13px;padding:34px 0;}
+  .list-msg.err{color:var(--red);}
+  .rec{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
+  .rec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;}
+  .badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.03em;flex-shrink:0;}
+  .badge.ok{background:rgba(30,126,74,.14);color:var(--green);}
+  .badge.nok{background:rgba(192,57,43,.16);color:var(--red);}
+  .rec-meta{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .rec-meta b{color:var(--ink);font-weight:600;}
+  .rec-folder{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--orange-dim);text-decoration:none;}
+  .rec-folder:hover{text-decoration:underline;}
+
   .page-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
   .page-title{font-size:16px;font-weight:600;color:var(--ink);}
   .page-meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.6;}
@@ -170,11 +197,16 @@
 </div>
 
 <div class="page-bar">
-  <div class="page-title">RMC Forma</div>
+  <div class="page-title">RMC</div>
   <div class="page-meta">MBL · RMC</div>
 </div>
 
-<div class="form-body">
+<div class="tabs">
+  <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauja paraiška</button>
+  <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Registruotų sąrašas</button>
+</div>
+
+<div class="form-body" id="tab-form">
   <div class="section">
     <div class="sec-head"><div class="sec-title">Įrašo duomenys / Record Data</div></div>
     <div class="sec-body">
@@ -268,6 +300,15 @@
 
     </div>
   </div>
+</div>
+
+<div class="list-body" id="tab-list" style="display:none">
+  <div class="list-bar">
+    <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys, tipas…)" oninput="filterList()">
+    <span class="list-count" id="list_count"></span>
+    <button class="btn-refresh" onclick="loadList()" title="Atnaujinti">⟳</button>
+  </div>
+  <div id="list_container"><div class="list-msg">—</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -458,6 +499,90 @@ async function createListItem(token, fields){
   }
   return true;
 }
+
+// ─────────── LIST TAB ───────────
+let _allRecords = [];
+
+function switchTab(name){
+  const isForm = name === 'form';
+  document.getElementById('tab-form').style.display = isForm ? '' : 'none';
+  document.getElementById('tab-list').style.display = isForm ? 'none' : '';
+  document.getElementById('tabbtn-form').classList.toggle('active', isForm);
+  document.getElementById('tabbtn-list').classList.toggle('active', !isForm);
+  if(!isForm) loadList();
+}
+
+async function loadList(){
+  const cont = document.getElementById('list_container');
+  if(DEV_SKIP_LOGIN){ cont.innerHTML = '<div class="list-msg">Sąrašas nepasiekiamas DEV režime.</div>'; document.getElementById('list_count').textContent=''; return; }
+  if(!currentUser){ cont.innerHTML = '<div class="list-msg">Prisijunkite, kad matytumėte sąrašą.</div>'; return; }
+  cont.innerHTML = '<div class="list-msg">Kraunama…</div>';
+  try{
+    const token = await getSpToken();
+    const map = await getFieldMap(token);
+    const col = d => map[d.toLowerCase()] || d;
+    const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$top=500&$orderby=Created desc`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const items = (await r.json()).d.results;
+    const origin = new URL(SP_SITE_URL).origin;
+    _allRecords = items.map(it => {
+      const folder = it[col('FolderPath')] || '';
+      return {
+        rmc:        it['Title'] || '',
+        tipas:      it[col('Tipas')] || '',
+        pavadinimas:it[col('Pavadinimas')] || '',
+        busena:     it[col('Busena')] || '',
+        brezinys:   it[col('BreziniNr')] || '',
+        rezultatas: it[col('Rezultatas')] || '',
+        darboTipas: it[col('DarboTipas')] || '',
+        photoCount: it[col('PhotoCount')] ?? '',
+        by:         it[col('SubmittedBy')] || '',
+        created:    it['Created'] || '',
+        folderUrl:  folder ? origin + encodeURI(folder) : ''
+      };
+    });
+    renderList(_allRecords);
+  }catch(e){
+    cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
+  }
+}
+
+function renderList(records){
+  const cont = document.getElementById('list_container');
+  document.getElementById('list_count').textContent = records.length ? records.length + ' įr.' : '';
+  if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
+  cont.innerHTML = records.map(r => {
+    const badge  = r.rezultatas ? `<span class="badge ${r.rezultatas.toLowerCase()==='nok'?'nok':'ok'}">${esc(r.rezultatas)}</span>` : '';
+    const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
+    const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
+    const parts = [];
+    if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
+    if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
+    if(r.darboTipas)     parts.push(esc(r.darboTipas));
+    if(r.photoCount!=='')parts.push(esc(String(r.photoCount)) + ' nuotr.');
+    const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
+    if(foot) parts.push(foot);
+    return `<div class="rec">
+      <div class="rec-head"><span class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</span>${badge}</div>
+      <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
+      ${r.folderUrl
+        ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
+        : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
+    </div>`;
+  }).join('');
+}
+
+function filterList(){
+  const q = document.getElementById('list_search').value.trim().toLowerCase();
+  if(!q){ renderList(_allRecords); return; }
+  renderList(_allRecords.filter(r =>
+    [r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.rezultatas, r.darboTipas, r.by]
+      .some(v => (v || '').toString().toLowerCase().includes(q))));
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ─────────── PHOTOS ───────────
 let photos = [];

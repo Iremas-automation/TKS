@@ -94,6 +94,33 @@
   .fclear{width:100%;font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:var(--radius);padding:8px;cursor:pointer;}
   .fclear:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
   .filter-toggle{display:none;width:100%;font-family:var(--font);font-size:13px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;cursor:pointer;margin-bottom:12px;}
+  .frange{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+  .frange label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .frange input{flex:1;font-family:var(--font);font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;}
+  .msel{position:relative;}
+  .msel-btn{width:100%;text-align:left;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;cursor:pointer;}
+  .msel-menu{display:none;position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:4px;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px 10px;}
+  .msel.open .msel-menu{display:block;}
+
+  /* Thumbnails */
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .thumb{width:56px;height:56px;border-radius:var(--radius);overflow:hidden;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .thumb.err::after{content:'⚠';font-size:14px;color:var(--muted);}
+  .thumb.more{font-size:13px;font-weight:700;color:var(--orange-dim);cursor:pointer;}
+
+  /* Lightbox */
+  .lightbox{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+  .lb-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;color:#fff;font-size:13px;}
+  .lb-actions{display:flex;align-items:center;gap:10px;}
+  .lb-btn{font-family:var(--font);font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);border:none;border-radius:var(--radius);padding:7px 12px;cursor:pointer;text-decoration:none;}
+  .lb-btn:hover{background:rgba(255,255,255,.28);}
+  .lb-img{max-width:92vw;max-height:82vh;display:flex;align-items:center;justify-content:center;}
+  .lb-img img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:4px;}
+  .lb-load{color:#fff;font-size:14px;}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
+  .lb-nav:hover{background:rgba(255,255,255,.3);}
+  .lb-prev{left:12px;} .lb-next{right:12px;}
   @media(max-width:640px){
     .list-layout{flex-direction:column;}
     .filter-panel{width:100%;position:static;display:none;}
@@ -339,6 +366,11 @@
   <div class="list-layout">
     <aside class="filter-panel" id="filterPanel">
       <div class="fgroup">
+        <div class="fgroup-title">Tipas</div>
+        <label class="fopt"><input type="checkbox" data-g="tipas" value="Subranga" onchange="applyFilters()"> Subranga</label>
+        <label class="fopt"><input type="checkbox" data-g="tipas" value="RMC" onchange="applyFilters()"> RMC</label>
+      </div>
+      <div class="fgroup">
         <div class="fgroup-title">Operacija</div>
         <label class="fopt"><input type="checkbox" data-g="op" value="Paruošimas" onchange="applyFilters()"> Paruošimas</label>
         <label class="fopt"><input type="checkbox" data-g="op" value="Mechaninis" onchange="applyFilters()"> Mechaninis</label>
@@ -348,7 +380,7 @@
       </div>
       <div class="fgroup">
         <div class="fgroup-title">OK / NOK</div>
-        <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Tik su NOK</label>
+        <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Yra NOK</label>
         <label class="fopt"><input type="checkbox" data-g="oknok" value="ok" onchange="applyFilters()"> Tik OK (be NOK)</label>
       </div>
       <div class="fgroup">
@@ -356,10 +388,17 @@
         <label class="fopt"><input type="checkbox" data-g="date" value="today" onchange="applyFilters()"> Šiandien</label>
         <label class="fopt"><input type="checkbox" data-g="date" value="7" onchange="applyFilters()"> Paskutinės 7 d.</label>
         <label class="fopt"><input type="checkbox" data-g="date" value="30" onchange="applyFilters()"> Paskutinės 30 d.</label>
+        <div class="frange">
+          <label>Nuo <input type="date" id="f_from" onchange="applyFilters()"></label>
+          <label>Iki <input type="date" id="f_to" onchange="applyFilters()"></label>
+        </div>
       </div>
       <div class="fgroup">
         <div class="fgroup-title">Vartotojas</div>
-        <div id="f_users"><div class="fnote">—</div></div>
+        <div class="msel" id="userMsel">
+          <button type="button" class="msel-btn" id="userMselBtn" onclick="toggleUserMenu(event)">Visi vartotojai ▾</button>
+          <div class="msel-menu" id="f_users"><div class="fnote">—</div></div>
+        </div>
       </div>
       <button class="fclear" onclick="clearFilters()">Išvalyti filtrus</button>
     </aside>
@@ -375,6 +414,19 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="lightbox" id="lightbox" style="display:none" onclick="if(event.target.id==='lightbox')closeLightbox()">
+  <div class="lb-top">
+    <span id="lb_count"></span>
+    <span class="lb-actions">
+      <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">Atidaryti SharePoint ↗</a>
+      <button class="lb-btn" onclick="closeLightbox()">✕</button>
+    </span>
+  </div>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
+  <div class="lb-img" id="lb_img"></div>
+  <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+</div>
 
 <script>
 // ─────────── CONFIG (edit these) ───────────
@@ -565,8 +617,76 @@ async function createListItem(token, fields){
 
 // ─────────── LIST TAB ───────────
 let _allRecords = [];
+let _viewRecords = [];
 let _listTimer = null;
 let _lastUpdated = null;
+const _imgCache = {};      // server-relative path -> object URL
+let _thumbObserver = null;
+let _lbList = [], _lbIdx = 0;
+
+function recPhotos(r){
+  return (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean).map(n => r.folder + '/' + n);
+}
+
+// Fetch a SharePoint file's bytes with the user's token and cache an object URL
+async function fetchImage(path){
+  if(_imgCache[path]) return _imgCache[path];
+  const token = await getSpToken();
+  const r = await fetch(`${SP_SITE_URL}/_api/web/GetFileByServerRelativePath(decodedurl='${path}')/$value`, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if(!r.ok) throw new Error('img ' + r.status);
+  const url = URL.createObjectURL(await r.blob());
+  _imgCache[path] = url;
+  return url;
+}
+
+// Load thumbnails only as cards scroll into view
+function lazyLoadThumbs(){
+  if(!_thumbObserver){
+    _thumbObserver = new IntersectionObserver(entries => {
+      entries.forEach(async en => {
+        if(!en.isIntersecting) return;
+        const el = en.target; _thumbObserver.unobserve(el);
+        try{
+          const url = await fetchImage(el.getAttribute('data-path'));
+          const img = document.createElement('img'); img.src = url; img.alt = '';
+          el.appendChild(img);
+        }catch(e){ el.classList.add('err'); }
+      });
+    }, { rootMargin: '250px' });
+  }
+  document.querySelectorAll('.thumb[data-path]:not(.observed)').forEach(el => {
+    el.classList.add('observed'); _thumbObserver.observe(el);
+  });
+}
+
+// Lightbox
+function openLightbox(vi, pi){
+  _lbList = recPhotos(_viewRecords[vi]); _lbIdx = pi;
+  if(!_lbList.length) return;
+  document.getElementById('lightbox').style.display = 'flex';
+  showLbImage();
+}
+async function showLbImage(){
+  const path = _lbList[_lbIdx];
+  const wrap = document.getElementById('lb_img');
+  wrap.innerHTML = '<div class="lb-load">Kraunama…</div>';
+  document.getElementById('lb_count').textContent = `${_lbIdx + 1} / ${_lbList.length}`;
+  document.getElementById('lb_open').href = new URL(SP_SITE_URL).origin + encodeURI(path);
+  try{
+    const url = await fetchImage(path);
+    if(_lbList[_lbIdx] === path) wrap.innerHTML = `<img src="${url}" alt="">`;
+  }catch(e){ wrap.innerHTML = '<div class="lb-load">Nepavyko įkelti nuotraukos</div>'; }
+}
+function lbNav(d){ _lbIdx = (_lbIdx + d + _lbList.length) % _lbList.length; showLbImage(); }
+function closeLightbox(){ document.getElementById('lightbox').style.display = 'none'; }
+document.addEventListener('keydown', e => {
+  if(document.getElementById('lightbox').style.display !== 'flex') return;
+  if(e.key === 'Escape') closeLightbox();
+  else if(e.key === 'ArrowLeft') lbNav(-1);
+  else if(e.key === 'ArrowRight') lbNav(1);
+});
 
 function switchTab(name){
   const isForm = name === 'form';
@@ -620,6 +740,8 @@ async function loadList(){
         darboTipas: it[col('DarboTipas')] || '',
         komentaras: it[col('Komentaras')] || '',
         photoCount: it[col('PhotoCount')] ?? '',
+        photoNames: it[col('PhotoNames')] || '',
+        folder:     folder,
         by:         it[col('SubmittedBy')] || '',
         created:    it['Created'] || '',
         folderUrl:  folder ? origin + encodeURI(folder) : ''
@@ -639,7 +761,8 @@ function renderList(records){
     (records.length ? records.length + ' įr.' : '') +
     (_lastUpdated ? (records.length ? ' · ' : '') + _lastUpdated.toLocaleTimeString('lt-LT') : '');
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
-  cont.innerHTML = records.map(r => {
+  _viewRecords = records;
+  cont.innerHTML = records.map((r, vi) => {
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
     const badges = `
       <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
@@ -650,13 +773,19 @@ function renderList(records){
     if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
     if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
     if(r.darboTipas)     parts.push(esc(r.darboTipas));
-    if(r.photoCount!=='')parts.push(esc(String(r.photoCount)) + ' nuotr.');
     const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
     if(foot) parts.push(foot);
+    const photos = recPhotos(r);
+    const shown = photos.slice(0, 4);
+    const thumbs = photos.length ? `<div class="thumbs">${
+      shown.map((p, i) => `<div class="thumb" data-path="${esc(p)}" onclick="openLightbox(${vi},${i})"></div>`).join('') +
+      (photos.length > 4 ? `<div class="thumb more" onclick="openLightbox(${vi},4)">+${photos.length - 4}</div>` : '')
+    }</div>` : '';
     return `<div class="rec">
       <div class="rec-main">
         <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</div>
         <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
+        ${thumbs}
         ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
         ${r.folderUrl
           ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
@@ -665,6 +794,7 @@ function renderList(records){
       <div class="rec-badges">${badges}</div>
     </div>`;
   }).join('');
+  lazyLoadThumbs();
 }
 
 function populateUserFilter(){
@@ -674,7 +804,18 @@ function populateUserFilter(){
   box.innerHTML = users.length
     ? users.map(u=>`<label class="fopt"><input type="checkbox" data-g="user" value="${esc(u)}" ${prev.has(u)?'checked':''} onchange="applyFilters()"> ${esc(u)}</label>`).join('')
     : '<div class="fnote">—</div>';
+  updateUserBtn();
 }
+
+function updateUserBtn(){
+  const n = getChecked('user').length;
+  document.getElementById('userMselBtn').textContent = (n ? `Vartotojai (${n})` : 'Visi vartotojai') + ' ▾';
+}
+function toggleUserMenu(e){ e.stopPropagation(); document.getElementById('userMsel').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  const m = document.getElementById('userMsel');
+  if(m && !m.contains(e.target)) m.classList.remove('open');
+});
 
 function getChecked(group){
   return [...document.querySelectorAll(`.filter-panel input[data-g="${group}"]:checked`)].map(el => el.value);
@@ -682,14 +823,18 @@ function getChecked(group){
 
 function applyFilters(){
   const q     = document.getElementById('list_search').value.trim().toLowerCase();
+  const tipas = getChecked('tipas');
   const ops   = getChecked('op');
   const oknok = getChecked('oknok');
   const dates = getChecked('date');
   const users = getChecked('user');
+  const from  = document.getElementById('f_from').value;
+  const to    = document.getElementById('f_to').value;
   const now = new Date();
   const list = _allRecords.filter(r => {
-    if(ops.length   && !ops.includes(r.busena)) return false;       // OR within Operacija
-    if(users.length && !users.includes(r.by))   return false;       // OR within Vartotojas
+    if(tipas.length && !tipas.includes(r.tipas))  return false;
+    if(ops.length   && !ops.includes(r.busena)) return false;
+    if(users.length && !users.includes(r.by))   return false;
     if(oknok.length && !oknok.some(v =>
         (v === 'nok' && Number(r.nok) > 0) ||
         (v === 'ok'  && Number(r.nok) === 0 && Number(r.ok) > 0))) return false;
@@ -701,18 +846,27 @@ function applyFilters(){
         : d >= new Date(now.getTime() - Number(v) * 864e5));
       if(!ok) return false;
     }
+    if(from || to){
+      if(!r.created) return false;
+      const d = new Date(r.created);
+      if(from && d < new Date(from + 'T00:00:00')) return false;
+      if(to   && d > new Date(to   + 'T23:59:59')) return false;
+    }
     if(q && ![r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
         .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
     return true;
   });
   renderList(list);
-  const n = ops.length + oknok.length + dates.length + users.length;
+  updateUserBtn();
+  const n = tipas.length + ops.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
   document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
 }
 
 function clearFilters(){
   document.querySelectorAll('.filter-panel input[type=checkbox]').forEach(c => c.checked = false);
   document.getElementById('list_search').value = '';
+  document.getElementById('f_from').value = '';
+  document.getElementById('f_to').value = '';
   applyFilters();
 }
 
@@ -746,26 +900,34 @@ function renderPhotos(){
   pz.classList.toggle('has', photos.length > 0);
   if(photos.length) pz.style.borderColor = '';
 }
-// Downscale + JPEG-compress before upload (phone photos are large)
-function compressPhoto(file, maxDim=1600, quality=0.72){
-  return new Promise((resolve, reject) => {
+// Keep the best quality we reasonably can: JPEGs pass through untouched (no re-encode),
+// anything else (or a huge file) is downscaled lightly at high quality.
+function fileExt(file){ return (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg'; }
+function processPhoto(file){
+  const MAX_DIM = 3000, QUALITY = 0.92, PASSTHROUGH = 12 * 1024 * 1024;
+  if(/jpe?g/i.test(file.type) && file.size <= PASSTHROUGH){
+    return Promise.resolve({ blob: file, ext: 'jpg' });      // original bytes = best quality
+  }
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
-        if(width > maxDim || height > maxDim){
-          if(width >= height){ height = Math.round(height * maxDim / width); width = maxDim; }
-          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        if(width > MAX_DIM || height > MAX_DIM){
+          if(width >= height){ height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
+          else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
         }
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Nepavyko apdoroti nuotraukos')), 'image/jpeg', quality);
+        canvas.toBlob(b => resolve(b ? { blob: b, ext: 'jpg' } : { blob: file, ext: fileExt(file) }), 'image/jpeg', QUALITY);
       };
-      img.onerror = reject; img.src = reader.result;
+      img.onerror = () => resolve({ blob: file, ext: fileExt(file) });   // e.g. HEIC canvas can't read → keep original
+      img.src = reader.result;
     };
-    reader.onerror = reject; reader.readAsDataURL(file);
+    reader.onerror = () => resolve({ blob: file, ext: fileExt(file) });
+    reader.readAsDataURL(file);
   });
 }
 
@@ -863,8 +1025,8 @@ async function submitForm(){
     let idx = 0, errors = 0;
     for(const p of photos){
       idx++;
-      const blob = await compressPhoto(p.file);
-      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.jpg`;
+      const { blob, ext } = await processPhoto(p.file);
+      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
       const ok = await uploadFileToSp(token, folderRelPath, filename, await blob.arrayBuffer());
       if(ok) uploadedNames.push(filename); else errors++;
     }

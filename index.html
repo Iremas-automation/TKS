@@ -620,7 +620,6 @@ function renderList(records){
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
   cont.innerHTML = records.map(r => {
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
-    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
     const badges = `
       <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
       <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;

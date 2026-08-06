@@ -275,13 +275,13 @@
 <script>
 // ─────────── CONFIG (edit these) ───────────
 const DEV_SKIP_LOGIN = true;   // ⚠ DEV ONLY — set to false before going live. Skips MS login (and SharePoint upload).
-const CLIENT_ID      = '18788fe0-90e8-4c79-8813-9f96ee80b6ab';   // reuse the NDT app registration, or create a new one
+const CLIENT_ID      = '413e4a48-f490-47b2-a36d-3d4039c87f9e';   // TKS app registration
 const TENANT_ID      = 'f300c84f-87f0-4d9e-8284-1e36dbe06fbe';
 const REDIRECT_URI   = 'https://iremas-automation.github.io/TKS/'; // must match this page's URL AND be added to the app registration
-const SP_SITE_URL    = 'https://achemosgrupelt.sharepoint.com/sites/TKS';
-const SP_FOLDER_BASE = '/sites/TKS/Bendrai naudojami dokumentai/General/TKS/Formos'; // photos go in <base>/<RMC numeris>/
+const SP_SITE_URL    = 'https://achemosgrupelt.sharepoint.com/sites/MBL';
+const SP_FOLDER_BASE = '/sites/MBL/Bendrai naudojami dokumentai/Planavimas/RMC'; // photos go in <base>/<RMC numeris>/
 const SP_SCOPES      = ['https://achemosgrupelt.sharepoint.com/AllSites.Read', 'https://achemosgrupelt.sharepoint.com/AllSites.Write'];
-const WORKER_URL     = 'https://rmc.YOUR-SUBDOMAIN.workers.dev/submit'; // metadata record → Power Automate → SharePoint list
+const SP_LIST_NAME   = 'RMC';   // the SharePoint list the record is written to (name it exactly this, no spaces)
 
 // ─────────── MSAL AUTH ───────────
 const msalInstance = new msal.PublicClientApplication({
@@ -367,6 +367,37 @@ async function uploadFileToSp(token, folderRelPath, filename, arrayBuffer){
     }
     return true;
   }catch(fe){ console.error('Upload error:', filename, fe); return false; }
+}
+
+// Write the metadata row straight into the SharePoint list via REST (no Power Automate needed)
+let _spEntityType = null;
+async function getListEntityType(token){
+  if(_spEntityType) return _spEntityType;
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')?$select=ListItemEntityTypeFullName`, {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+  });
+  if(!r.ok) throw new Error(`sąrašas „${SP_LIST_NAME}" nerastas (${r.status})`);
+  const j = await r.json();
+  _spEntityType = j.d.ListItemEntityTypeFullName;
+  return _spEntityType;
+}
+async function createListItem(token, fields){
+  const type = await getListEntityType(token);
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    body: JSON.stringify(Object.assign({ '__metadata': { 'type': type } }, fields))
+  });
+  if(!r.ok){
+    const t = await r.text(); let m = r.status;
+    try{ m = JSON.parse(t)?.error?.message?.value || r.status; }catch{}
+    throw new Error('įrašo klaida: ' + m);
+  }
+  return true;
 }
 
 // ─────────── PHOTOS ───────────
@@ -508,29 +539,21 @@ async function submitForm(){
     }
     if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
 
-    // 3) Save the metadata record via the Worker → Power Automate → SharePoint list
+    // 3) Save the metadata record straight into the SharePoint list (REST, no Power Automate)
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
-    const payload = {
-      rmcNumber,
-      tipas,
-      pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
-      busena:      tipas === 'RMC' ? busena.value : '',
-      breziniNr:   drawing.value.trim(),
-      rezultatas:  rezultatas.value,
-      darboTipas:  darboTipas.value,
-      folderPath:  folderRelPath,
-      photoCount:  uploadedNames.length,
-      photoNames:  uploadedNames.join(', '),
-      submittedBy:      currentUser?.name || '',
-      submittedByEmail: currentUser?.username || '',
-      submittedAt: new Date().toISOString()
-    };
-    const resp = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    await createListItem(token, {
+      Title:       rmcNumber,
+      Tipas:       tipas,
+      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      Busena:      tipas === 'RMC' ? busena.value : '',
+      BreziniNr:   drawing.value.trim(),
+      Rezultatas:  rezultatas.value,
+      DarboTipas:  darboTipas.value,
+      FolderPath:  folderRelPath,
+      PhotoCount:  uploadedNames.length,
+      PhotoNames:  uploadedNames.join(', '),
+      SubmittedBy: currentUser?.name || ''
     });
-    if(!(resp.ok || resp.status === 202)) throw new Error('įrašo klaida (HTTP ' + resp.status + ')');
 
     showToast(`✓ Pateikta · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(clearForm, 1100);

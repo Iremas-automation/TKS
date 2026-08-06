@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMC Forma – MBL</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
+<style>
+  :root{
+    --bg:#eef0f2;--surface:#ffffff;--ink:#1a1c1f;
+    --orange:#e8640a;--orange-dim:#c25509;
+    --muted:#6b7280;--border:#d8dce1;
+    --header-bg:#1a1c1f;--header-text:#ffffff;--header-muted:rgba(255,255,255,0.5);
+    --red:#c0392b;--red-light:#fdf0f0;--green:#1e7e4a;
+    --radius:3px;--font:'Segoe UI',system-ui,sans-serif;
+    --shadow:0 8px 24px rgba(0,0,0,0.06);
+  }
+  [data-theme="dark"]{
+    --bg:#15171a;--surface:#1e2125;--ink:#e4e6ea;
+    --orange:#e8640a;--orange-dim:#ff8a3d;
+    --muted:#8b919c;--border:#2d3138;
+    --header-bg:#0e0f11;--header-text:#ffffff;--header-muted:rgba(255,255,255,0.45);
+    --red:#e2716a;--red-light:#3a2220;--green:#3fae72;
+    --shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:40px;transition:background .2s,color .2s;}
+
+  .header{background:var(--header-bg);color:var(--header-text);}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;}
+  .logo{display:flex;align-items:center;gap:12px;}
+  .logo-mark{width:34px;height:34px;background:var(--orange);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;}
+  .logo-name{font-size:14px;font-weight:600;}
+  .logo-sub{font-size:11px;color:var(--header-muted);}
+  .theme-toggle{width:30px;height:30px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:var(--header-text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:background .15s;}
+  .theme-toggle:hover{background:rgba(255,255,255,0.12);}
+  .header-right{display:flex;align-items:center;gap:10px;}
+
+  /* Login overlay + user pill */
+  .login-overlay{position:fixed;inset:0;background:var(--header-bg);z-index:300;display:flex;align-items:center;justify-content:center;}
+  .login-overlay.hidden{display:none;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:40px 44px;text-align:center;max-width:380px;width:90%;box-shadow:var(--shadow);}
+  .login-logo{width:46px;height:46px;background:var(--orange);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;margin:0 auto 16px;}
+  .login-card h2{font-size:18px;color:var(--ink);margin-bottom:6px;font-weight:700;}
+  .login-card p{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.5;}
+  .btn-ms{display:flex;align-items:center;gap:10px;background:#0078d4;color:#fff;border:none;border-radius:3px;padding:11px 20px;font-size:14px;font-weight:500;cursor:pointer;width:100%;justify-content:center;font-family:var(--font);transition:background .15s;}
+  .btn-ms:hover{background:#006cbd;}
+  .user-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:4px 10px 4px 4px;}
+  .user-avatar{width:24px;height:24px;background:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+  .user-name{font-size:12px;color:var(--header-text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .btn-logout{background:none;border:none;color:var(--header-muted);font-size:12px;cursor:pointer;padding:2px 4px;}
+  .btn-logout:hover{color:var(--header-text);}
+
+  /* Tabs */
+  .tabs{display:flex;gap:2px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;}
+  .tab{font-family:var(--font);font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:12px 16px;cursor:pointer;}
+  .tab:hover{color:var(--ink);}
+  .tab.active{color:var(--orange-dim);border-bottom-color:var(--orange);}
+
+  /* List view */
+  .list-body{max-width:760px;margin:22px auto 0;padding:0 20px;}
+  .list-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .list-bar input{flex:1;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;}
+  .list-bar input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
+  .list-count{display:block;font-size:12px;color:var(--muted);white-space:nowrap;text-align:right;margin-bottom:10px;}
+  .btn-refresh{width:36px;height:36px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;}
+  .btn-refresh:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .list-msg{text-align:center;color:var(--muted);font-size:13px;padding:34px 0;}
+  .list-msg.err{color:var(--red);}
+  .rec{display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 14px 14px 16px;margin-bottom:10px;}
+  .rec-main{flex:1;min-width:0;}
+  .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
+  .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
+  .badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;border-radius:10px;padding:6px;}
+  .badge .n{font-size:24px;font-weight:800;line-height:1;}
+  .badge .l{font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.7;margin-top:3px;}
+  .badge.ok{background:rgba(60,120,90,.16);color:#3f7d5c;}
+  .badge.nok{background:rgba(170,80,72,.16);color:#b0645c;}
+  .rec-meta{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .rec-meta b{color:var(--ink);font-weight:600;}
+  .rec-folder{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--orange-dim);text-decoration:none;}
+  .rec-folder:hover{text-decoration:underline;}
+  .rec-comment{font-size:12px;color:var(--ink);background:var(--bg);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;}
+
+  /* Filters (side panel) */
+  .list-layout{display:flex;gap:16px;align-items:flex-start;}
+  .list-main{flex:1;min-width:0;}
+  .filter-panel{width:200px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;position:sticky;top:16px;}
+  .fgroup{margin-bottom:14px;}
+  .fgroup-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px;}
+  .fopt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);padding:4px 0;cursor:pointer;}
+  .fopt input{width:16px;height:16px;accent-color:var(--orange);cursor:pointer;flex-shrink:0;}
+  .fnote{font-size:12px;color:var(--muted);}
+  .fclear{width:100%;font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:var(--radius);padding:8px;cursor:pointer;}
+  .fclear:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .filter-toggle{display:none;width:100%;font-family:var(--font);font-size:13px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;cursor:pointer;margin-bottom:12px;}
+  .frange{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+  .frange label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .frange input{flex:1;font-family:var(--font);font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;}
+  .msel{position:relative;}
+  .msel-btn{width:100%;text-align:left;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;cursor:pointer;}
+  .msel-menu{display:none;position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:4px;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px 10px;}
+  .msel.open .msel-menu{display:block;}
+
+  /* Thumbnails */
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .thumb{width:56px;height:56px;border-radius:var(--radius);overflow:hidden;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .thumb.err::after{content:'⚠';font-size:14px;color:var(--muted);}
+  .thumb.more{font-size:13px;font-weight:700;color:var(--orange-dim);cursor:pointer;}
+
+  /* Lightbox */
+  .lightbox{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+  .lb-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;color:#fff;font-size:13px;}
+  .lb-actions{display:flex;align-items:center;gap:10px;}
+  .lb-btn{font-family:var(--font);font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);border:none;border-radius:var(--radius);padding:7px 12px;cursor:pointer;text-decoration:none;}
+  .lb-btn:hover{background:rgba(255,255,255,.28);}
+  .lb-img{max-width:92vw;max-height:82vh;display:flex;align-items:center;justify-content:center;}
+  .lb-img img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:4px;}
+  .lb-load{color:#fff;font-size:14px;}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
+  .lb-nav:hover{background:rgba(255,255,255,.3);}
+  .lb-prev{left:12px;} .lb-next{right:12px;}
+  @media(max-width:640px){
+    .list-layout{flex-direction:column;}
+    .filter-panel{width:100%;position:static;display:none;}
+    .filter-panel.open{display:block;}
+    .filter-toggle{display:block;}
+  }
+
+  .page-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .page-title{font-size:16px;font-weight:600;color:var(--ink);}
+  .page-meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.6;}
+
+  .form-body{max-width:560px;margin:28px auto 0;padding:0 20px;}
+  .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+  .sec-head{border-left:3px solid var(--orange);padding:12px 22px;}
+  .sec-title{font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;}
+  .sec-body{padding:20px 22px;display:flex;flex-direction:column;gap:18px;}
+
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;line-height:1.3;}
+  .field label .lt{font-weight:400;opacity:.75;text-transform:none;}
+  .req{color:var(--orange);}
+  .field input,.field select,.field textarea{
+    font-family:var(--font);font-size:14px;color:var(--ink);
+    background:var(--bg);border:1px solid var(--border);
+    border-radius:var(--radius);padding:10px 12px;width:100%;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .field textarea{resize:vertical;min-height:46px;line-height:1.5;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
+  .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
+
+  /* Segmented Subranga / RMC toggle */
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .seg-opt{position:relative;}
+  .seg-opt input{position:absolute;opacity:0;pointer-events:none;}
+  .seg-opt label{
+    display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+    border:2px solid var(--border);border-radius:var(--radius);padding:14px 10px;
+    font-size:14px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0;
+    transition:border-color .15s,background .15s;text-align:center;
+  }
+  .seg-opt label .sub{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .seg-opt label:hover{border-color:var(--orange-dim);}
+  .seg-opt input:checked + label{border-color:var(--orange);background:rgba(232,100,10,0.08);color:var(--orange-dim);}
+
+  .conditional{display:none;}
+  .conditional.show{display:flex;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+
+  .form-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:2px;}
+  .btn{font-family:var(--font);font-size:14px;font-weight:600;padding:11px 24px;border-radius:var(--radius);cursor:pointer;border:none;transition:all .15s;}
+  .btn-sec{background:var(--surface);border:1px solid var(--border);color:var(--muted);}
+  .btn-sec:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .btn-pri{background:var(--orange);color:#fff;}
+  .btn-pri:hover{background:var(--orange-dim);}
+  .btn-pri:disabled{background:var(--muted);cursor:not-allowed;}
+
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);padding:12px 20px;border-radius:var(--radius);font-size:14px;font-weight:500;color:#fff;z-index:200;opacity:0;transition:all .3s;pointer-events:none;box-shadow:var(--shadow);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.success{background:var(--green);}
+  .toast.error{background:var(--red);}
+  .toast.info{background:var(--muted);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  /* Photo upload */
+  .photozone{border:2px dashed var(--orange-dim);border-radius:8px;padding:18px 16px;text-align:center;background:rgba(232,100,10,0.08);transition:border-color .15s,background .15s;}
+  .photozone.has{border-color:var(--green);background:rgba(30,126,74,0.08);}
+  .pz-icon{font-size:22px;margin-bottom:6px;}
+  .pz-text{font-size:12px;font-weight:600;color:var(--orange-dim);margin-bottom:10px;}
+  .pz-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .pz-btn{font-family:var(--font);font-size:12px;font-weight:600;padding:7px 16px;border:2px solid var(--orange-dim);border-radius:var(--radius);background:var(--surface);color:var(--orange-dim);cursor:pointer;}
+  .pz-btn-cam{background:var(--orange);color:#fff;}
+  .photo-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .photo-thumb{position:relative;width:74px;height:74px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb .rm{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;}
+  .photo-thumb .rm:hover{background:var(--red);}
+
+  @media(max-width:600px){
+    .header-inner,.page-bar{padding:12px 16px;}
+    .form-body{padding:0 12px;margin-top:18px;}
+    .sec-body{padding:16px 14px;}
+    .grid2{grid-template-columns:1fr;}
+    .form-footer{flex-direction:column-reverse;}
+    .btn{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">MBL</div>
+    <h2>RMC Forma</h2>
+    <p>Prisijunkite su savo Iremas Microsoft paskyra, kad galėtumėte pateikti įrašą ir įkelti nuotraukas.</p>
+    <button class="btn-ms" onclick="signIn()">
+      <svg width="20" height="20" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Prisijungti su Microsoft
+    </button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">MBL</div>
+      <div>
+        <div class="logo-name">UAB Iremas</div>
+        <div class="logo-sub">RMC registracija</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="user-pill" id="userBadge" style="display:none;">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span class="user-name" id="userName">...</span>
+        <button class="btn-logout" onclick="signOut()" title="Atsijungti">✕</button>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Tamsus / šviesus režimas">🌙</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-bar">
+  <div class="page-title">RMC</div>
+  <div class="page-meta">MBL · RMC</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauji matavimai</button>
+  <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Matavimų registras</button>
+</div>
+
+<div class="form-body" id="tab-form">
+  <div class="section">
+    <div class="sec-head"><div class="sec-title">Įrašo duomenys / Record Data</div></div>
+    <div class="sec-body">
+
+      <!-- 1. RMC numeris -->
+      <div class="field">
+        <label>RMC numeris <span class="req">*</span></label>
+        <input type="text" id="f_rmc" placeholder="pvz. RMC-2026-001" autocomplete="off" required>
+      </div>
+
+      <!-- Naujas / Remontas -->
+      <div class="field">
+        <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
+        <select id="f_darboTipas">
+          <option value="">— Pasirinkite —</option>
+          <option value="Naujas">Naujas</option>
+          <option value="Remontas">Remontas</option>
+        </select>
+      </div>
+
+      <!-- 2. Subranga / RMC -->
+      <div class="field">
+        <label>Tipas <span class="req">*</span></label>
+        <div class="seg">
+          <div class="seg-opt">
+            <input type="radio" name="tipas" id="t_sub" value="Subranga" onchange="onTypeChange()">
+            <label for="t_sub">Subranga<span class="sub">Subcontract</span></label>
+          </div>
+          <div class="seg-opt">
+            <input type="radio" name="tipas" id="t_rmc" value="RMC" onchange="onTypeChange()">
+            <label for="t_rmc">RMC<span class="sub">Internal</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Pavadinimas (only if Subranga) -->
+      <div class="field conditional" id="wrap_pavadinimas">
+        <label>Pavadinimas <span class="req">*</span><br><span class="lt">Name</span></label>
+        <input type="text" id="f_pavadinimas" placeholder="Subrangovo / darbo pavadinimas" autocomplete="off">
+      </div>
+
+      <!-- 4. Būsena (only if RMC) -->
+      <div class="field conditional" id="wrap_busena">
+        <label>Operacija <span class="req">*</span><br><span class="lt">Operation</span></label>
+        <select id="f_busena">
+          <option value="">— Pasirinkite —</option>
+          <option value="Paruošimas">Paruošimas</option>
+          <option value="Mechaninis">Mechaninis</option>
+          <option value="Prieš suvirinimą">Prieš suvirinimą</option>
+          <option value="Suvirinimas">Suvirinimas</option>
+          <option value="Dažymas">Dažymas</option>
+        </select>
+      </div>
+
+      <!-- 5. Detalės brėžinio numeris -->
+      <div class="field">
+        <label>Detalės brėžinio numeris <span class="req">*</span><br><span class="lt">Part Drawing No.</span></label>
+        <input type="text" id="f_drawing" placeholder="pvz. BR-877-14" autocomplete="off" required>
+      </div>
+
+      <!-- 6. OK / NOK kiekiai -->
+      <div class="grid2">
+        <div class="field">
+          <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
+          <input type="number" id="f_ok" min="0" step="1" inputmode="numeric" placeholder="0">
+        </div>
+        <div class="field">
+          <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
+          <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="0">
+        </div>
+      </div>
+
+      <!-- Komentaras -->
+      <div class="field">
+        <label>Komentaras<br><span class="lt">Comment</span></label>
+        <textarea id="f_komentaras" rows="3" placeholder="Papildoma informacija (nebūtina)"></textarea>
+      </div>
+
+      <!-- 8. Nuotraukos (mandatory) -->
+      <div class="field">
+        <label>Nuotraukos <span class="req">*</span><br><span class="lt">Photos — bent 1 privaloma / at least 1 required</span></label>
+        <div class="photozone" id="photozone">
+          <div class="pz-icon">📷</div>
+          <div class="pz-text">Nufotografuokite arba pasirinkite nuotraukas</div>
+          <div class="pz-btns">
+            <button type="button" class="pz-btn pz-btn-cam" onclick="document.getElementById('p_camera').click()">📷 Fotografuoti</button>
+            <button type="button" class="pz-btn" onclick="document.getElementById('p_gallery').click()">🖼 Pasirinkti</button>
+          </div>
+          <input type="file" id="p_camera" accept="image/*" capture="environment" style="display:none" onchange="addPhotos(this)">
+          <input type="file" id="p_gallery" accept="image/*" multiple style="display:none" onchange="addPhotos(this)">
+        </div>
+        <div class="photo-grid" id="photo_grid"></div>
+      </div>
+
+      <div class="form-footer">
+        <button class="btn btn-sec" onclick="clearForm()">Išvalyti</button>
+        <button class="btn btn-pri" id="submitBtn" onclick="submitForm()">Pateikti / Submit</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="list-body" id="tab-list" style="display:none">
+  <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">Filtrai</button>
+  <div class="list-layout">
+    <aside class="filter-panel" id="filterPanel">
+      <div class="fgroup">
+        <div class="fgroup-title">Tipas</div>
+        <label class="fopt"><input type="checkbox" data-g="tipas" value="Subranga" onchange="applyFilters()"> Subranga</label>
+        <label class="fopt"><input type="checkbox" data-g="tipas" value="RMC" onchange="applyFilters()"> RMC</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Operacija</div>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Paruošimas" onchange="applyFilters()"> Paruošimas</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Mechaninis" onchange="applyFilters()"> Mechaninis</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Prieš suvirinimą" onchange="applyFilters()"> Prieš suvirinimą</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Suvirinimas" onchange="applyFilters()"> Suvirinimas</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Dažymas" onchange="applyFilters()"> Dažymas</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">OK / NOK</div>
+        <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Yra NOK</label>
+        <label class="fopt"><input type="checkbox" data-g="oknok" value="ok" onchange="applyFilters()"> Tik OK (be NOK)</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Data</div>
+        <label class="fopt"><input type="checkbox" data-g="date" value="today" onchange="applyFilters()"> Šiandien</label>
+        <label class="fopt"><input type="checkbox" data-g="date" value="7" onchange="applyFilters()"> Paskutinės 7 d.</label>
+        <label class="fopt"><input type="checkbox" data-g="date" value="30" onchange="applyFilters()"> Paskutinės 30 d.</label>
+        <div class="frange">
+          <label>Nuo <input type="date" id="f_from" onchange="applyFilters()"></label>
+          <label>Iki <input type="date" id="f_to" onchange="applyFilters()"></label>
+        </div>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Vartotojas</div>
+        <div class="msel" id="userMsel">
+          <button type="button" class="msel-btn" id="userMselBtn" onclick="toggleUserMenu(event)">Visi vartotojai ▾</button>
+          <div class="msel-menu" id="f_users"><div class="fnote">—</div></div>
+        </div>
+      </div>
+      <button class="fclear" onclick="clearFilters()">Išvalyti filtrus</button>
+    </aside>
+    <div class="list-main">
+      <div class="list-bar">
+        <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys…)" oninput="applyFilters()">
+        <button class="btn-refresh" onclick="loadList()" title="Atnaujinti">⟳</button>
+      </div>
+      <div class="list-count" id="list_count"></div>
+      <div id="list_container"><div class="list-msg">—</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="lightbox" id="lightbox" style="display:none" onclick="if(event.target.id==='lightbox')closeLightbox()">
+  <div class="lb-top">
+    <span id="lb_count"></span>
+    <span class="lb-actions">
+      <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">Atidaryti SharePoint ↗</a>
+      <button class="lb-btn" onclick="closeLightbox()">✕</button>
+    </span>
+  </div>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
+  <div class="lb-img" id="lb_img"></div>
+  <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+</div>
+
+<script>
+// ─────────── CONFIG (edit these) ───────────
+const DEV_SKIP_LOGIN = false;   // ⚠ DEV ONLY — set to true to skip MS login (and SharePoint upload) while working on the UI.
+const CLIENT_ID      = '413e4a48-f490-47b2-a36d-3d4039c87f9e';   // TKS app registration
+const TENANT_ID      = 'f300c84f-87f0-4d9e-8284-1e36dbe06fbe';
+const REDIRECT_URI   = 'https://iremas-automation.github.io/TKS/'; // must match this page's URL AND be added to the app registration
+const SP_SITE_URL    = 'https://achemosgrupelt.sharepoint.com/sites/MBL';
+const SP_FOLDER_BASE = '/sites/MBL/Bendrai naudojami dokumentai/Planavimas/RMC'; // photos go in <base>/<RMC numeris>/
+const SP_SCOPES      = ['https://achemosgrupelt.sharepoint.com/AllSites.Read', 'https://achemosgrupelt.sharepoint.com/AllSites.Write'];
+const SP_LIST_NAME   = 'TKS_list';   // the SharePoint list the record is written to (must match the list's name exactly)
+
+// ─────────── MSAL AUTH ───────────
+const msalInstance = new msal.PublicClientApplication({
+  auth: { clientId: CLIENT_ID, authority: `https://login.microsoftonline.com/${TENANT_ID}`, redirectUri: REDIRECT_URI },
+  cache: { cacheLocation: 'localStorage' }   // persist login across browser restarts
+});
+let currentUser = null;
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+async function initAuth(){
+  if(DEV_SKIP_LOGIN){
+    currentUser = { name: 'Dev Naudotojas', username: 'dev@iremas.lt' };
+    showUser(currentUser);
+    document.getElementById('loginOverlay').classList.add('hidden');
+    return;
+  }
+  await msalInstance.initialize();
+
+  // If we're returning from a redirect sign-in, finish it here
+  try{
+    const resp = await msalInstance.handleRedirectPromise();
+    if(resp && resp.account){ currentUser = resp.account; msalInstance.setActiveAccount(currentUser); }
+  }catch(e){ console.error('Redirect handling failed:', e); }
+
+  const accounts = msalInstance.getAllAccounts();
+  if(currentUser || accounts.length){
+    currentUser = currentUser || accounts[0];
+    msalInstance.setActiveAccount(currentUser);
+    showUser(currentUser);
+    document.getElementById('loginOverlay').classList.add('hidden');   // already signed in — don't prompt
+  } else {
+    document.getElementById('loginOverlay').classList.remove('hidden');
+  }
+}
+async function signIn(){
+  const request = { scopes: ['User.Read', ...SP_SCOPES] };
+  // Mobile browsers block auth popups — go straight to redirect
+  if(IS_MOBILE){
+    try{ await msalInstance.loginRedirect(request); }catch(e){ alert('Prisijungti nepavyko: ' + e.message); }
+    return;
+  }
+  try{
+    const resp = await msalInstance.loginPopup(request);
+    currentUser = resp.account;
+    msalInstance.setActiveAccount(currentUser);
+    showUser(currentUser);
+    document.getElementById('loginOverlay').classList.add('hidden');
+  }catch(e){
+    // Popup blocked → fall back to redirect
+    if(['block_nested_popups','popup_window_error','empty_window_error'].includes(e.errorCode)){
+      try{ await msalInstance.loginRedirect(request); }catch(e2){ alert('Prisijungti nepavyko: ' + e2.message); }
+    } else if(e.errorCode !== 'user_cancelled'){
+      alert('Prisijungti nepavyko: ' + e.message);
+    }
+  }
+}
+function signOut(){
+  const acc = msalInstance.getAllAccounts()[0];
+  if(acc) msalInstance.logoutPopup({ account: acc });
+  currentUser = null;
+  document.getElementById('userBadge').style.display = 'none';
+  document.getElementById('loginOverlay').classList.remove('hidden');
+}
+function showUser(account){
+  const initials = account.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('userAvatar').textContent = initials;
+  document.getElementById('userName').textContent = account.name;
+  document.getElementById('userBadge').style.display = 'flex';
+}
+async function getSpToken(){
+  const request = { scopes: SP_SCOPES, account: currentUser };
+  try{
+    const r = await msalInstance.acquireTokenSilent(request);
+    return r.accessToken;
+  }catch(e){
+    if(IS_MOBILE){
+      // Can't pop a window on mobile; re-auth via redirect (page will reload and come back)
+      await msalInstance.acquireTokenRedirect(request);
+      throw new Error('nukreipiama į prisijungimą, bandykite dar kartą');
+    }
+    const r = await msalInstance.acquireTokenPopup(request);
+    return r.accessToken;
+  }
+}
+
+// ─────────── SHAREPOINT ───────────
+async function ensureSpFolder(token, folderRelPath){
+  try{
+    const check = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${folderRelPath}')`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(check.status === 404){
+      const create = await fetch(`${SP_SITE_URL}/_api/web/folders`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose' },
+        body: JSON.stringify({ '__metadata': { 'type': 'SP.Folder' }, 'ServerRelativeUrl': folderRelPath })
+      });
+      if(!create.ok){ console.error('Folder create failed:', create.status, await create.text()); return false; }
+    }
+    return true;
+  }catch(fe){ console.warn('Folder error:', fe); return false; }
+}
+async function uploadFileToSp(token, folderRelPath, filename, arrayBuffer){
+  try{
+    const url = `${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${folderRelPath}')/Files/add(url='${filename}',overwrite=true)`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose', 'Content-Type': 'application/octet-stream' },
+      body: arrayBuffer
+    });
+    if(!resp.ok){
+      const errText = await resp.text();
+      let msg = resp.status; try{ msg = JSON.parse(errText)?.error?.message?.value || resp.status; }catch{}
+      console.error('Upload failed:', filename, msg);
+      showToast(`⚠ Klaida (${filename}): ${msg}`, 'error');
+      return false;
+    }
+    return true;
+  }catch(fe){ console.error('Upload error:', filename, fe); return false; }
+}
+
+// Write the metadata row straight into the SharePoint list via REST (no Power Automate needed)
+let _spEntityType = null;
+let _spFieldMap = null;   // display title (lowercased) -> internal name
+async function getListEntityType(token){
+  if(_spEntityType) return _spEntityType;
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')?$select=ListItemEntityTypeFullName`, {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+  });
+  if(!r.ok) throw new Error(`sąrašas „${SP_LIST_NAME}" nerastas (${r.status})`);
+  const j = await r.json();
+  _spEntityType = j.d.ListItemEntityTypeFullName;
+  return _spEntityType;
+}
+// Excel-created lists give columns internal names that differ from what you see,
+// so resolve display name -> internal name from the list itself.
+async function getFieldMap(token){
+  if(_spFieldMap) return _spFieldMap;
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/fields?$select=Title,InternalName,ReadOnlyField,Hidden`, {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+  });
+  if(!r.ok) throw new Error(`nepavyko nuskaityti stulpelių (${r.status})`);
+  const j = await r.json();
+  _spFieldMap = {};
+  for(const f of j.d.results){
+    if(f.Hidden || f.ReadOnlyField) continue;
+    _spFieldMap[f.Title.trim().toLowerCase()] = f.InternalName;
+  }
+  return _spFieldMap;
+}
+async function createListItem(token, fields){
+  const type = await getListEntityType(token);
+  const map  = await getFieldMap(token);
+  const body = { '__metadata': { 'type': type } };
+  const missing = [];
+  for(const [disp, val] of Object.entries(fields)){
+    const internal = map[disp.toLowerCase()] || (disp === 'Title' ? 'Title' : null);
+    if(internal) body[internal] = val; else missing.push(disp);
+  }
+  if(missing.length) console.warn('SharePoint stulpeliai nerasti (praleista):', missing);
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok){
+    const t = await r.text(); let m = r.status;
+    try{ m = JSON.parse(t)?.error?.message?.value || r.status; }catch{}
+    throw new Error('įrašo klaida: ' + m);
+  }
+  return true;
+}
+
+// ─────────── LIST TAB ───────────
+let _allRecords = [];
+let _viewRecords = [];
+let _listTimer = null;
+let _lastUpdated = null;
+const _imgCache = {};      // server-relative path -> object URL
+let _thumbObserver = null;
+let _lbList = [], _lbIdx = 0;
+
+function recPhotos(r){
+  return (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean).map(n => r.folder + '/' + n);
+}
+
+// Fetch a SharePoint file's bytes with the user's token and cache an object URL
+async function fetchImage(path){
+  if(_imgCache[path]) return _imgCache[path];
+  const token = await getSpToken();
+  const r = await fetch(`${SP_SITE_URL}/_api/web/GetFileByServerRelativePath(decodedurl='${path}')/$value`, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if(!r.ok) throw new Error('img ' + r.status);
+  const url = URL.createObjectURL(await r.blob());
+  _imgCache[path] = url;
+  return url;
+}
+
+// Load thumbnails only as cards scroll into view
+function lazyLoadThumbs(){
+  if(!_thumbObserver){
+    _thumbObserver = new IntersectionObserver(entries => {
+      entries.forEach(async en => {
+        if(!en.isIntersecting) return;
+        const el = en.target; _thumbObserver.unobserve(el);
+        try{
+          const url = await fetchImage(el.getAttribute('data-path'));
+          const img = document.createElement('img'); img.src = url; img.alt = '';
+          el.appendChild(img);
+        }catch(e){ el.classList.add('err'); }
+      });
+    }, { rootMargin: '250px' });
+  }
+  document.querySelectorAll('.thumb[data-path]:not(.observed)').forEach(el => {
+    el.classList.add('observed'); _thumbObserver.observe(el);
+  });
+}
+
+// Lightbox
+function openLightbox(vi, pi){
+  _lbList = recPhotos(_viewRecords[vi]); _lbIdx = pi;
+  if(!_lbList.length) return;
+  document.getElementById('lightbox').style.display = 'flex';
+  showLbImage();
+}
+async function showLbImage(){
+  const path = _lbList[_lbIdx];
+  const wrap = document.getElementById('lb_img');
+  wrap.innerHTML = '<div class="lb-load">Kraunama…</div>';
+  document.getElementById('lb_count').textContent = `${_lbIdx + 1} / ${_lbList.length}`;
+  document.getElementById('lb_open').href = new URL(SP_SITE_URL).origin + encodeURI(path);
+  try{
+    const url = await fetchImage(path);
+    if(_lbList[_lbIdx] === path) wrap.innerHTML = `<img src="${url}" alt="">`;
+  }catch(e){ wrap.innerHTML = '<div class="lb-load">Nepavyko įkelti nuotraukos</div>'; }
+}
+function lbNav(d){ _lbIdx = (_lbIdx + d + _lbList.length) % _lbList.length; showLbImage(); }
+function closeLightbox(){ document.getElementById('lightbox').style.display = 'none'; }
+document.addEventListener('keydown', e => {
+  if(document.getElementById('lightbox').style.display !== 'flex') return;
+  if(e.key === 'Escape') closeLightbox();
+  else if(e.key === 'ArrowLeft') lbNav(-1);
+  else if(e.key === 'ArrowRight') lbNav(1);
+});
+
+function switchTab(name){
+  const isForm = name === 'form';
+  document.getElementById('tab-form').style.display = isForm ? '' : 'none';
+  document.getElementById('tab-list').style.display = isForm ? 'none' : '';
+  document.getElementById('tabbtn-form').classList.toggle('active', isForm);
+  document.getElementById('tabbtn-list').classList.toggle('active', !isForm);
+  if(isForm){
+    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }   // stop refreshing when away
+  } else {
+    loadList();
+    if(!_listTimer && !DEV_SKIP_LOGIN) _listTimer = setInterval(loadList, 30000);   // auto-refresh every 30s
+  }
+}
+
+// Refresh only when the tab is actually visible, to avoid pointless calls in the background
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){
+    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }
+  } else if(document.getElementById('tab-list').style.display !== 'none' && !DEV_SKIP_LOGIN){
+    loadList();
+    if(!_listTimer) _listTimer = setInterval(loadList, 30000);
+  }
+});
+
+async function loadList(){
+  const cont = document.getElementById('list_container');
+  if(DEV_SKIP_LOGIN){ cont.innerHTML = '<div class="list-msg">Sąrašas nepasiekiamas DEV režime.</div>'; document.getElementById('list_count').textContent=''; return; }
+  if(!currentUser){ cont.innerHTML = '<div class="list-msg">Prisijunkite, kad matytumėte sąrašą.</div>'; return; }
+  cont.innerHTML = '<div class="list-msg">Kraunama…</div>';
+  try{
+    const token = await getSpToken();
+    const map = await getFieldMap(token);
+    const col = d => map[d.toLowerCase()] || d;
+    const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$top=500&$orderby=Created desc`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const items = (await r.json()).d.results;
+    const origin = new URL(SP_SITE_URL).origin;
+    _allRecords = items.map(it => {
+      const folder = it[col('FolderPath')] || '';
+      return {
+        rmc:        it['Title'] || '',
+        tipas:      it[col('Tipas')] || '',
+        pavadinimas:it[col('Pavadinimas')] || '',
+        busena:     it[col('Busena')] || '',
+        brezinys:   it[col('BreziniNr')] || '',
+        ok:         it[col('OK')] ?? '',
+        nok:        it[col('NOK')] ?? '',
+        darboTipas: it[col('DarboTipas')] || '',
+        komentaras: it[col('Komentaras')] || '',
+        photoCount: it[col('PhotoCount')] ?? '',
+        photoNames: it[col('PhotoNames')] || '',
+        folder:     folder,
+        by:         it[col('SubmittedBy')] || '',
+        created:    it['Created'] || '',
+        folderUrl:  folder ? origin + encodeURI(folder) : ''
+      };
+    });
+    _lastUpdated = new Date();
+    populateUserFilter();
+    applyFilters();
+  }catch(e){
+    cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
+  }
+}
+
+function renderList(records){
+  const cont = document.getElementById('list_container');
+  document.getElementById('list_count').textContent =
+    (records.length ? records.length + ' įr.' : '') +
+    (_lastUpdated ? (records.length ? ' · ' : '') + _lastUpdated.toLocaleTimeString('lt-LT') : '');
+  if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
+  _viewRecords = records;
+  cont.innerHTML = records.map((r, vi) => {
+    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
+    const badges = `
+      <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
+      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;
+    const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
+    const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
+    const parts = [];
+    if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
+    if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
+    if(r.darboTipas)     parts.push(esc(r.darboTipas));
+    const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
+    if(foot) parts.push(foot);
+    const photos = recPhotos(r);
+    const shown = photos.slice(0, 4);
+    const thumbs = photos.length ? `<div class="thumbs">${
+      shown.map((p, i) => `<div class="thumb" data-path="${esc(p)}" onclick="openLightbox(${vi},${i})"></div>`).join('') +
+      (photos.length > 4 ? `<div class="thumb more" onclick="openLightbox(${vi},4)">+${photos.length - 4}</div>` : '')
+    }</div>` : '';
+    return `<div class="rec">
+      <div class="rec-main">
+        <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</div>
+        <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
+        ${thumbs}
+        ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
+        ${r.folderUrl
+          ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
+          : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
+      </div>
+      <div class="rec-badges">${badges}</div>
+    </div>`;
+  }).join('');
+  lazyLoadThumbs();
+}
+
+function populateUserFilter(){
+  const box = document.getElementById('f_users');
+  const prev = new Set(getChecked('user'));
+  const users = [...new Set(_allRecords.map(r => r.by).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'lt'));
+  box.innerHTML = users.length
+    ? users.map(u=>`<label class="fopt"><input type="checkbox" data-g="user" value="${esc(u)}" ${prev.has(u)?'checked':''} onchange="applyFilters()"> ${esc(u)}</label>`).join('')
+    : '<div class="fnote">—</div>';
+  updateUserBtn();
+}
+
+function updateUserBtn(){
+  const n = getChecked('user').length;
+  document.getElementById('userMselBtn').textContent = (n ? `Vartotojai (${n})` : 'Visi vartotojai') + ' ▾';
+}
+function toggleUserMenu(e){ e.stopPropagation(); document.getElementById('userMsel').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  const m = document.getElementById('userMsel');
+  if(m && !m.contains(e.target)) m.classList.remove('open');
+});
+
+function getChecked(group){
+  return [...document.querySelectorAll(`.filter-panel input[data-g="${group}"]:checked`)].map(el => el.value);
+}
+
+function applyFilters(){
+  const q     = document.getElementById('list_search').value.trim().toLowerCase();
+  const tipas = getChecked('tipas');
+  const ops   = getChecked('op');
+  const oknok = getChecked('oknok');
+  const dates = getChecked('date');
+  const users = getChecked('user');
+  const from  = document.getElementById('f_from').value;
+  const to    = document.getElementById('f_to').value;
+  const now = new Date();
+  const list = _allRecords.filter(r => {
+    if(tipas.length && !tipas.includes(r.tipas))  return false;
+    if(ops.length   && !ops.includes(r.busena)) return false;
+    if(users.length && !users.includes(r.by))   return false;
+    if(oknok.length && !oknok.some(v =>
+        (v === 'nok' && Number(r.nok) > 0) ||
+        (v === 'ok'  && Number(r.nok) === 0 && Number(r.ok) > 0))) return false;
+    if(dates.length){
+      if(!r.created) return false;
+      const d = new Date(r.created);
+      const ok = dates.some(v => v === 'today'
+        ? d.toDateString() === now.toDateString()
+        : d >= new Date(now.getTime() - Number(v) * 864e5));
+      if(!ok) return false;
+    }
+    if(from || to){
+      if(!r.created) return false;
+      const d = new Date(r.created);
+      if(from && d < new Date(from + 'T00:00:00')) return false;
+      if(to   && d > new Date(to   + 'T23:59:59')) return false;
+    }
+    if(q && ![r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
+        .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
+    return true;
+  });
+  renderList(list);
+  updateUserBtn();
+  const n = tipas.length + ops.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
+  document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
+}
+
+function clearFilters(){
+  document.querySelectorAll('.filter-panel input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('list_search').value = '';
+  document.getElementById('f_from').value = '';
+  document.getElementById('f_to').value = '';
+  applyFilters();
+}
+
+function toggleFilters(){
+  document.getElementById('filterPanel').classList.toggle('open');
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ─────────── PHOTOS ───────────
+let photos = [];
+let photoSeq = 0;
+
+function addPhotos(input){
+  const files = Array.from(input.files || []).filter(f => f.type.startsWith('image/'));
+  files.forEach(f => { const id = 'p' + (++photoSeq); photos.push({ file:f, url:URL.createObjectURL(f), id }); });
+  input.value = '';
+  renderPhotos();
+}
+function removePhoto(id){
+  const p = photos.find(x => x.id === id);
+  if(p) URL.revokeObjectURL(p.url);
+  photos = photos.filter(x => x.id !== id);
+  renderPhotos();
+}
+function renderPhotos(){
+  document.getElementById('photo_grid').innerHTML = photos.map(p => `
+    <div class="photo-thumb"><img src="${p.url}" alt="">
+      <button type="button" class="rm" onclick="removePhoto('${p.id}')" title="Pašalinti">✕</button></div>`).join('');
+  const pz = document.getElementById('photozone');
+  pz.classList.toggle('has', photos.length > 0);
+  if(photos.length) pz.style.borderColor = '';
+}
+// Keep the best quality we reasonably can: JPEGs pass through untouched (no re-encode),
+// anything else (or a huge file) is downscaled lightly at high quality.
+function fileExt(file){ return (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg'; }
+function processPhoto(file){
+  const MAX_DIM = 3000, QUALITY = 0.92, PASSTHROUGH = 12 * 1024 * 1024;
+  if(/jpe?g/i.test(file.type) && file.size <= PASSTHROUGH){
+    return Promise.resolve({ blob: file, ext: 'jpg' });      // original bytes = best quality
+  }
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > MAX_DIM || height > MAX_DIM){
+          if(width >= height){ height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
+          else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(b => resolve(b ? { blob: b, ext: 'jpg' } : { blob: file, ext: fileExt(file) }), 'image/jpeg', QUALITY);
+      };
+      img.onerror = () => resolve({ blob: file, ext: fileExt(file) });   // e.g. HEIC canvas can't read → keep original
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve({ blob: file, ext: fileExt(file) });
+    reader.readAsDataURL(file);
+  });
+}
+
+function onTypeChange(){
+  const tipas = document.querySelector('[name=tipas]:checked')?.value;
+  const wrapP = document.getElementById('wrap_pavadinimas');
+  const wrapB = document.getElementById('wrap_busena');
+  wrapP.classList.toggle('show', tipas === 'Subranga');
+  wrapB.classList.toggle('show', tipas === 'RMC');
+  // Clear the hidden one so stale values aren't submitted
+  if(tipas !== 'Subranga') document.getElementById('f_pavadinimas').value = '';
+  if(tipas !== 'RMC') document.getElementById('f_busena').value = '';
+}
+
+function showToast(msg, type='success'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+function markInvalid(el){ el.style.borderColor = 'var(--red)'; el.style.boxShadow = '0 0 0 3px rgba(192,57,43,.14)'; }
+function clearInvalid(el){ el.style.borderColor = ''; el.style.boxShadow = ''; }
+
+async function submitForm(){
+  if(!currentUser){ document.getElementById('loginOverlay').classList.remove('hidden'); return; }
+
+  const rmc        = document.getElementById('f_rmc');
+  const drawing    = document.getElementById('f_drawing');
+  const tipas      = document.querySelector('[name=tipas]:checked')?.value || '';
+  const pav        = document.getElementById('f_pavadinimas');
+  const busena     = document.getElementById('f_busena');
+  const okEl       = document.getElementById('f_ok');
+  const nokEl      = document.getElementById('f_nok');
+  const darboTipas = document.getElementById('f_darboTipas');
+
+  [rmc, drawing, pav, busena, okEl, nokEl, darboTipas].forEach(clearInvalid);
+
+  const okN  = parseInt(okEl.value, 10);
+  const nokN = parseInt(nokEl.value, 10);
+  const okVal  = Number.isFinite(okN)  ? okN  : 0;
+  const nokVal = Number.isFinite(nokN) ? nokN : 0;
+
+  let valid = true;
+  if(!rmc.value.trim()){ markInvalid(rmc); valid = false; }
+  if(!drawing.value.trim()){ markInvalid(drawing); valid = false; }
+  if(!tipas){ showToast('Pasirinkite tipą (Subranga / RMC)', 'error'); valid = false; }
+  if(tipas === 'Subranga' && !pav.value.trim()){ markInvalid(pav); valid = false; }
+  if(tipas === 'RMC' && !busena.value){ markInvalid(busena); valid = false; }
+  if(okEl.value !== '' && (!Number.isFinite(okN) || okN < 0)){ markInvalid(okEl); valid = false; }
+  if(nokEl.value !== '' && (!Number.isFinite(nokN) || nokN < 0)){ markInvalid(nokEl); valid = false; }
+  if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
+  if(!darboTipas.value){ markInvalid(darboTipas); valid = false; }
+  if(photos.length === 0){ document.getElementById('photozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
+
+  if(!valid){ if(rmc.value.trim() && drawing.value.trim() && photos.length && (okVal+nokVal>=1)) showToast('Užpildykite privalomus laukus', 'error'); return; }
+
+  if(DEV_SKIP_LOGIN){
+    console.log('[DEV] Login/upload skipped. Would submit:', {
+      rmcNumber: rmc.value.trim(), tipas,
+      pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      busena: tipas === 'RMC' ? busena.value : '',
+      breziniNr: drawing.value.trim(),
+      ok: okVal, nok: nokVal, darboTipas: darboTipas.value,
+      komentaras: document.getElementById('f_komentaras').value.trim(),
+      photos: photos.length
+    });
+    showToast(`✓ [DEV] Patikrinta · ${photos.length} nuotr. (be įkėlimo)`, 'success');
+    setTimeout(clearForm, 1100);
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+
+  const rmcNumber = rmc.value.trim();
+  const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
+  const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
+
+  try{
+    btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
+    const token = await getSpToken();
+
+    // 1) Create the folder (ensure base first, then the RMC subfolder)
+    btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
+    await ensureSpFolder(token, SP_FOLDER_BASE);
+    const folderOk = await ensureSpFolder(token, folderRelPath);
+    if(!folderOk) throw new Error('nepavyko sukurti SharePoint aplanko');
+
+    // 2) Compress + upload each photo into it
+    btn.innerHTML = '<span class="spinner"></span>Keliamos nuotraukos…';
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const uploadedNames = [];
+    let idx = 0, errors = 0;
+    for(const p of photos){
+      idx++;
+      const { blob, ext } = await processPhoto(p.file);
+      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
+      const ok = await uploadFileToSp(token, folderRelPath, filename, await blob.arrayBuffer());
+      if(ok) uploadedNames.push(filename); else errors++;
+    }
+    if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
+
+    // 3) Save the metadata record straight into the SharePoint list (REST, no Power Automate)
+    btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
+    await createListItem(token, {
+      Title:       rmcNumber,
+      Tipas:       tipas,
+      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      Busena:      tipas === 'RMC' ? busena.value : '',
+      BreziniNr:   drawing.value.trim(),
+      OK:          okVal,
+      NOK:         nokVal,
+      DarboTipas:  darboTipas.value,
+      Komentaras:  document.getElementById('f_komentaras').value.trim(),
+      FolderPath:  folderRelPath,
+      PhotoCount:  uploadedNames.length,
+      PhotoNames:  uploadedNames.join(', '),
+      SubmittedBy: currentUser?.name || ''
+    });
+
+    showToast(`✓ Pateikta · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
+    setTimeout(clearForm, 1100);
+  } catch(e){
+    showToast('Klaida: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Pateikti / Submit';
+  }
+}
+
+function clearForm(){
+  ['f_rmc','f_drawing','f_pavadinimas','f_busena','f_ok','f_nok','f_darboTipas','f_komentaras'].forEach(id=>{
+    const el = document.getElementById(id); el.value = ''; clearInvalid(el);
+  });
+  document.querySelectorAll('[name=tipas]').forEach(r=>r.checked=false);
+  photos.forEach(p=>URL.revokeObjectURL(p.url));
+  photos = [];
+  renderPhotos();
+  document.getElementById('photozone').style.borderColor = '';
+  onTypeChange();
+}
+
+// Theme
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('mbl-theme', theme);
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+applyTheme(localStorage.getItem('mbl-theme') || 'light');
+
+// Init
+initAuth();
+</script>
+</body>
+</html>

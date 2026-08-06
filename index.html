@@ -62,23 +62,30 @@
   .list-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
   .list-bar input{flex:1;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;}
   .list-bar input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
-  .list-count{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .list-count{display:block;font-size:12px;color:var(--muted);white-space:nowrap;text-align:right;margin-bottom:10px;}
   .btn-refresh{width:36px;height:36px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;}
   .btn-refresh:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
   .list-msg{text-align:center;color:var(--muted);font-size:13px;padding:34px 0;}
   .list-msg.err{color:var(--red);}
-  .rec{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
-  .rec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
-  .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;}
-  .badge{font-size:14px;font-weight:800;padding:5px 14px;border-radius:8px;letter-spacing:.02em;flex-shrink:0;color:#fff;}
-  .rec-badges{display:flex;gap:8px;flex-shrink:0;}
-  .badge.ok{background:#1e7e4a;}
-  .badge.nok{background:#c0392b;}
+  .rec{display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 14px 14px 16px;margin-bottom:10px;}
+  .rec-main{flex:1;min-width:0;}
+  .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
+  .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
+  .badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;border-radius:10px;padding:6px;}
+  .badge .n{font-size:24px;font-weight:800;line-height:1;}
+  .badge .l{font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.7;margin-top:3px;}
+  .badge.ok{background:rgba(60,120,90,.16);color:#3f7d5c;}
+  .badge.nok{background:rgba(170,80,72,.16);color:#b0645c;}
   .rec-meta{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12px;color:var(--muted);margin-bottom:10px;}
   .rec-meta b{color:var(--ink);font-weight:600;}
   .rec-folder{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--orange-dim);text-decoration:none;}
   .rec-folder:hover{text-decoration:underline;}
   .rec-comment{font-size:12px;color:var(--ink);background:var(--bg);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;}
+
+  /* Filters */
+  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px;}
+  .filters select{font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;width:100%;}
+  .filters select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
 
   .page-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
   .page-title{font-size:16px;font-weight:600;color:var(--ink);}
@@ -253,7 +260,7 @@
 
       <!-- 4. Būsena (only if RMC) -->
       <div class="field conditional" id="wrap_busena">
-        <label>Būsena <span class="req">*</span><br><span class="lt">Status</span></label>
+        <label>Operacija <span class="req">*</span><br><span class="lt">Operation</span></label>
         <select id="f_busena">
           <option value="">— Pasirinkite —</option>
           <option value="Paruošimas">Paruošimas</option>
@@ -315,10 +322,34 @@
 
 <div class="list-body" id="tab-list" style="display:none">
   <div class="list-bar">
-    <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys, tipas…)" oninput="filterList()">
-    <span class="list-count" id="list_count"></span>
+    <input type="text" id="list_search" placeholder="Ieškoti (RMC nr., brėžinys, tipas…)" oninput="applyFilters()">
     <button class="btn-refresh" onclick="loadList()" title="Atnaujinti">⟳</button>
   </div>
+  <div class="filters">
+    <select id="f_op" onchange="applyFilters()">
+      <option value="">Visos operacijos</option>
+      <option value="Paruošimas">Paruošimas</option>
+      <option value="Mechaninis">Mechaninis</option>
+      <option value="Prieš suvirinimą">Prieš suvirinimą</option>
+      <option value="Suvirinimas">Suvirinimas</option>
+      <option value="Dažymas">Dažymas</option>
+    </select>
+    <select id="f_oknok" onchange="applyFilters()">
+      <option value="">OK / NOK: visi</option>
+      <option value="nok">Tik su NOK</option>
+      <option value="ok">Tik OK (be NOK)</option>
+    </select>
+    <select id="f_date" onchange="applyFilters()">
+      <option value="">Visos datos</option>
+      <option value="today">Šiandien</option>
+      <option value="7">Paskutinės 7 d.</option>
+      <option value="30">Paskutinės 30 d.</option>
+    </select>
+    <select id="f_user" onchange="applyFilters()">
+      <option value="">Visi vartotojai</option>
+    </select>
+  </div>
+  <div class="list-count" id="list_count"></div>
   <div id="list_container"><div class="list-msg">—</div></div>
 </div>
 
@@ -574,8 +605,8 @@ async function loadList(){
       };
     });
     _lastUpdated = new Date();
-    const q = document.getElementById('list_search').value.trim();
-    if(q) filterList(); else renderList(_allRecords);
+    populateUserFilter();
+    applyFilters();
   }catch(e){
     cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
   }
@@ -589,7 +620,10 @@ function renderList(records){
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
   cont.innerHTML = records.map(r => {
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
-    const badges = `${okN ? `<span class="badge ok">OK ${okN}</span>` : ''}${nokN ? `<span class="badge nok">NOK ${nokN}</span>` : ''}`;
+    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
+    const badges = `
+      <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
+      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
@@ -600,22 +634,50 @@ function renderList(records){
     const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
     if(foot) parts.push(foot);
     return `<div class="rec">
-      <div class="rec-head"><span class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</span><span class="rec-badges">${badges}</span></div>
-      <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
-      ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
-      ${r.folderUrl
-        ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
-        : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
+      <div class="rec-main">
+        <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</div>
+        <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
+        ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
+        ${r.folderUrl
+          ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
+          : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
+      </div>
+      <div class="rec-badges">${badges}</div>
     </div>`;
   }).join('');
 }
 
-function filterList(){
-  const q = document.getElementById('list_search').value.trim().toLowerCase();
-  if(!q){ renderList(_allRecords); return; }
-  renderList(_allRecords.filter(r =>
-    [r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
-      .some(v => (v || '').toString().toLowerCase().includes(q))));
+function populateUserFilter(){
+  const sel = document.getElementById('f_user');
+  const cur = sel.value;
+  const users = [...new Set(_allRecords.map(r => r.by).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'lt'));
+  sel.innerHTML = '<option value="">Visi vartotojai</option>' + users.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');
+  if(users.includes(cur)) sel.value = cur;
+}
+
+function applyFilters(){
+  const q  = document.getElementById('list_search').value.trim().toLowerCase();
+  const op = document.getElementById('f_op').value;
+  const on = document.getElementById('f_oknok').value;
+  const dt = document.getElementById('f_date').value;
+  const us = document.getElementById('f_user').value;
+  const now = new Date();
+  const list = _allRecords.filter(r => {
+    if(op && r.busena !== op) return false;
+    if(us && r.by !== us) return false;
+    if(on === 'nok' && !(Number(r.nok) > 0)) return false;
+    if(on === 'ok'  && !(Number(r.nok) === 0 && Number(r.ok) > 0)) return false;
+    if(dt){
+      if(!r.created) return false;
+      const d = new Date(r.created);
+      if(dt === 'today'){ if(d.toDateString() !== now.toDateString()) return false; }
+      else { const cutoff = new Date(now.getTime() - Number(dt) * 864e5); if(d < cutoff) return false; }
+    }
+    if(q && ![r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
+        .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
+    return true;
+  });
+  renderList(list);
 }
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }

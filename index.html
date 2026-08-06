@@ -286,9 +286,10 @@ const SP_LIST_NAME   = 'TKS_list';   // the SharePoint list the record is writte
 // ─────────── MSAL AUTH ───────────
 const msalInstance = new msal.PublicClientApplication({
   auth: { clientId: CLIENT_ID, authority: `https://login.microsoftonline.com/${TENANT_ID}`, redirectUri: REDIRECT_URI },
-  cache: { cacheLocation: 'sessionStorage' }
+  cache: { cacheLocation: 'localStorage' }   // persist login across browser restarts
 });
 let currentUser = null;
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
 async function initAuth(){
   if(DEV_SKIP_LOGIN){
@@ -298,17 +299,44 @@ async function initAuth(){
     return;
   }
   await msalInstance.initialize();
+
+  // If we're returning from a redirect sign-in, finish it here
+  try{
+    const resp = await msalInstance.handleRedirectPromise();
+    if(resp && resp.account){ currentUser = resp.account; msalInstance.setActiveAccount(currentUser); }
+  }catch(e){ console.error('Redirect handling failed:', e); }
+
   const accounts = msalInstance.getAllAccounts();
-  if(accounts.length){ currentUser = accounts[0]; showUser(currentUser); }
-  else { document.getElementById('loginOverlay').classList.remove('hidden'); }
+  if(currentUser || accounts.length){
+    currentUser = currentUser || accounts[0];
+    msalInstance.setActiveAccount(currentUser);
+    showUser(currentUser);
+    document.getElementById('loginOverlay').classList.add('hidden');   // already signed in — don't prompt
+  } else {
+    document.getElementById('loginOverlay').classList.remove('hidden');
+  }
 }
 async function signIn(){
+  const request = { scopes: ['User.Read', ...SP_SCOPES] };
+  // Mobile browsers block auth popups — go straight to redirect
+  if(IS_MOBILE){
+    try{ await msalInstance.loginRedirect(request); }catch(e){ alert('Prisijungti nepavyko: ' + e.message); }
+    return;
+  }
   try{
-    const resp = await msalInstance.loginPopup({ scopes: ['User.Read', ...SP_SCOPES] });
+    const resp = await msalInstance.loginPopup(request);
     currentUser = resp.account;
+    msalInstance.setActiveAccount(currentUser);
     showUser(currentUser);
     document.getElementById('loginOverlay').classList.add('hidden');
-  }catch(e){ alert('Prisijungti nepavyko: ' + e.message); }
+  }catch(e){
+    // Popup blocked → fall back to redirect
+    if(['block_nested_popups','popup_window_error','empty_window_error'].includes(e.errorCode)){
+      try{ await msalInstance.loginRedirect(request); }catch(e2){ alert('Prisijungti nepavyko: ' + e2.message); }
+    } else if(e.errorCode !== 'user_cancelled'){
+      alert('Prisijungti nepavyko: ' + e.message);
+    }
+  }
 }
 function signOut(){
   const acc = msalInstance.getAllAccounts()[0];
@@ -324,11 +352,17 @@ function showUser(account){
   document.getElementById('userBadge').style.display = 'flex';
 }
 async function getSpToken(){
+  const request = { scopes: SP_SCOPES, account: currentUser };
   try{
-    const r = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: currentUser });
+    const r = await msalInstance.acquireTokenSilent(request);
     return r.accessToken;
   }catch(e){
-    const r = await msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account: currentUser });
+    if(IS_MOBILE){
+      // Can't pop a window on mobile; re-auth via redirect (page will reload and come back)
+      await msalInstance.acquireTokenRedirect(request);
+      throw new Error('nukreipiama į prisijungimą, bandykite dar kartą');
+    }
+    const r = await msalInstance.acquireTokenPopup(request);
     return r.accessToken;
   }
 }

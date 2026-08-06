@@ -206,7 +206,7 @@
 
 <div class="tabs">
   <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauja paraiška</button>
-  <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Registruotų sąrašas</button>
+  <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Matavimų registras</button>
 </div>
 
 <div class="form-body" id="tab-form">
@@ -218,6 +218,16 @@
       <div class="field">
         <label>RMC numeris <span class="req">*</span></label>
         <input type="text" id="f_rmc" placeholder="pvz. RMC-2026-001" autocomplete="off" required>
+      </div>
+
+      <!-- Naujas / Remontas -->
+      <div class="field">
+        <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
+        <select id="f_darboTipas">
+          <option value="">— Pasirinkite —</option>
+          <option value="Naujas">Naujas</option>
+          <option value="Remontas">Remontas</option>
+        </select>
       </div>
 
       <!-- 2. Subranga / RMC -->
@@ -270,16 +280,6 @@
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
           <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="0">
         </div>
-      </div>
-
-      <!-- 7. Naujas / Remontas -->
-      <div class="field">
-        <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
-        <select id="f_darboTipas">
-          <option value="">— Pasirinkite —</option>
-          <option value="Naujas">Naujas</option>
-          <option value="Remontas">Remontas</option>
-        </select>
       </div>
 
       <!-- Komentaras -->
@@ -513,6 +513,8 @@ async function createListItem(token, fields){
 
 // ─────────── LIST TAB ───────────
 let _allRecords = [];
+let _listTimer = null;
+let _lastUpdated = null;
 
 function switchTab(name){
   const isForm = name === 'form';
@@ -520,8 +522,23 @@ function switchTab(name){
   document.getElementById('tab-list').style.display = isForm ? 'none' : '';
   document.getElementById('tabbtn-form').classList.toggle('active', isForm);
   document.getElementById('tabbtn-list').classList.toggle('active', !isForm);
-  if(!isForm) loadList();
+  if(isForm){
+    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }   // stop refreshing when away
+  } else {
+    loadList();
+    if(!_listTimer && !DEV_SKIP_LOGIN) _listTimer = setInterval(loadList, 30000);   // auto-refresh every 30s
+  }
 }
+
+// Refresh only when the tab is actually visible, to avoid pointless calls in the background
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){
+    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }
+  } else if(document.getElementById('tab-list').style.display !== 'none' && !DEV_SKIP_LOGIN){
+    loadList();
+    if(!_listTimer) _listTimer = setInterval(loadList, 30000);
+  }
+});
 
 async function loadList(){
   const cont = document.getElementById('list_container');
@@ -556,7 +573,9 @@ async function loadList(){
         folderUrl:  folder ? origin + encodeURI(folder) : ''
       };
     });
-    renderList(_allRecords);
+    _lastUpdated = new Date();
+    const q = document.getElementById('list_search').value.trim();
+    if(q) filterList(); else renderList(_allRecords);
   }catch(e){
     cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
   }
@@ -564,7 +583,9 @@ async function loadList(){
 
 function renderList(records){
   const cont = document.getElementById('list_container');
-  document.getElementById('list_count').textContent = records.length ? records.length + ' įr.' : '';
+  document.getElementById('list_count').textContent =
+    (records.length ? records.length + ' įr.' : '') +
+    (_lastUpdated ? (records.length ? ' · ' : '') + _lastUpdated.toLocaleTimeString('lt-LT') : '');
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
   cont.innerHTML = records.map(r => {
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;

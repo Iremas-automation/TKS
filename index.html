@@ -274,6 +274,7 @@
 
 <script>
 // ─────────── CONFIG (edit these) ───────────
+const DEV_SKIP_LOGIN = true;   // ⚠ DEV ONLY — set to false before going live. Skips MS login (and SharePoint upload).
 const CLIENT_ID      = '18788fe0-90e8-4c79-8813-9f96ee80b6ab';   // reuse the NDT app registration, or create a new one
 const TENANT_ID      = 'f300c84f-87f0-4d9e-8284-1e36dbe06fbe';
 const REDIRECT_URI   = 'https://iremas-automation.github.io/TKS/'; // must match this page's URL AND be added to the app registration
@@ -290,6 +291,12 @@ const msalInstance = new msal.PublicClientApplication({
 let currentUser = null;
 
 async function initAuth(){
+  if(DEV_SKIP_LOGIN){
+    currentUser = { name: 'Dev Naudotojas', username: 'dev@iremas.lt' };
+    showUser(currentUser);
+    document.getElementById('loginOverlay').classList.add('hidden');
+    return;
+  }
   await msalInstance.initialize();
   const accounts = msalInstance.getAllAccounts();
   if(accounts.length){ currentUser = accounts[0]; showUser(currentUser); }

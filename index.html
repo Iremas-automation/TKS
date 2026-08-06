@@ -71,6 +71,7 @@
   .rec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
   .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;}
   .badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.03em;flex-shrink:0;}
+  .rec-badges{display:flex;gap:6px;flex-shrink:0;}
   .badge.ok{background:rgba(30,126,74,.14);color:var(--green);}
   .badge.nok{background:rgba(192,57,43,.16);color:var(--red);}
   .rec-meta{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12px;color:var(--muted);margin-bottom:10px;}
@@ -259,24 +260,26 @@
         <input type="text" id="f_drawing" placeholder="pvz. BR-877-14" autocomplete="off" required>
       </div>
 
-      <!-- 6 & 7. Rezultatas + Naujas/Remontas -->
+      <!-- 6. OK / NOK kiekiai -->
       <div class="grid2">
         <div class="field">
-          <label>Rezultatas <span class="req">*</span><br><span class="lt">Result</span></label>
-          <select id="f_rezultatas">
-            <option value="">— Pasirinkite —</option>
-            <option value="OK">OK</option>
-            <option value="NOK">NOK</option>
-          </select>
+          <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
+          <input type="number" id="f_ok" min="0" step="1" inputmode="numeric" placeholder="0">
         </div>
         <div class="field">
-          <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
-          <select id="f_darboTipas">
-            <option value="">— Pasirinkite —</option>
-            <option value="Naujas">Naujas</option>
-            <option value="Remontas">Remontas</option>
-          </select>
+          <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
+          <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="0">
         </div>
+      </div>
+
+      <!-- 7. Naujas / Remontas -->
+      <div class="field">
+        <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
+        <select id="f_darboTipas">
+          <option value="">— Pasirinkite —</option>
+          <option value="Naujas">Naujas</option>
+          <option value="Remontas">Remontas</option>
+        </select>
       </div>
 
       <!-- Komentaras -->
@@ -543,7 +546,8 @@ async function loadList(){
         pavadinimas:it[col('Pavadinimas')] || '',
         busena:     it[col('Busena')] || '',
         brezinys:   it[col('BreziniNr')] || '',
-        rezultatas: it[col('Rezultatas')] || '',
+        ok:         it[col('OK')] ?? '',
+        nok:        it[col('NOK')] ?? '',
         darboTipas: it[col('DarboTipas')] || '',
         komentaras: it[col('Komentaras')] || '',
         photoCount: it[col('PhotoCount')] ?? '',
@@ -563,7 +567,8 @@ function renderList(records){
   document.getElementById('list_count').textContent = records.length ? records.length + ' įr.' : '';
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
   cont.innerHTML = records.map(r => {
-    const badge  = r.rezultatas ? `<span class="badge ${r.rezultatas.toLowerCase()==='nok'?'nok':'ok'}">${esc(r.rezultatas)}</span>` : '';
+    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
+    const badges = `${okN ? `<span class="badge ok">OK ${okN}</span>` : ''}${nokN ? `<span class="badge nok">NOK ${nokN}</span>` : ''}`;
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
@@ -574,7 +579,7 @@ function renderList(records){
     const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
     if(foot) parts.push(foot);
     return `<div class="rec">
-      <div class="rec-head"><span class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</span>${badge}</div>
+      <div class="rec-head"><span class="rec-rmc">${esc(r.rmc)||'(be numerio)'}</span><span class="rec-badges">${badges}</span></div>
       <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
       ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
       ${r.folderUrl
@@ -588,7 +593,7 @@ function filterList(){
   const q = document.getElementById('list_search').value.trim().toLowerCase();
   if(!q){ renderList(_allRecords); return; }
   renderList(_allRecords.filter(r =>
-    [r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.rezultatas, r.darboTipas, r.komentaras, r.by]
+    [r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
       .some(v => (v || '').toString().toLowerCase().includes(q))));
 }
 
@@ -671,10 +676,16 @@ async function submitForm(){
   const tipas      = document.querySelector('[name=tipas]:checked')?.value || '';
   const pav        = document.getElementById('f_pavadinimas');
   const busena     = document.getElementById('f_busena');
-  const rezultatas = document.getElementById('f_rezultatas');
+  const okEl       = document.getElementById('f_ok');
+  const nokEl      = document.getElementById('f_nok');
   const darboTipas = document.getElementById('f_darboTipas');
 
-  [rmc, drawing, pav, busena, rezultatas, darboTipas].forEach(clearInvalid);
+  [rmc, drawing, pav, busena, okEl, nokEl, darboTipas].forEach(clearInvalid);
+
+  const okN  = parseInt(okEl.value, 10);
+  const nokN = parseInt(nokEl.value, 10);
+  const okVal  = Number.isFinite(okN)  ? okN  : 0;
+  const nokVal = Number.isFinite(nokN) ? nokN : 0;
 
   let valid = true;
   if(!rmc.value.trim()){ markInvalid(rmc); valid = false; }
@@ -682,11 +693,13 @@ async function submitForm(){
   if(!tipas){ showToast('Pasirinkite tipą (Subranga / RMC)', 'error'); valid = false; }
   if(tipas === 'Subranga' && !pav.value.trim()){ markInvalid(pav); valid = false; }
   if(tipas === 'RMC' && !busena.value){ markInvalid(busena); valid = false; }
-  if(!rezultatas.value){ markInvalid(rezultatas); valid = false; }
+  if(okEl.value !== '' && (!Number.isFinite(okN) || okN < 0)){ markInvalid(okEl); valid = false; }
+  if(nokEl.value !== '' && (!Number.isFinite(nokN) || nokN < 0)){ markInvalid(nokEl); valid = false; }
+  if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
   if(!darboTipas.value){ markInvalid(darboTipas); valid = false; }
   if(photos.length === 0){ document.getElementById('photozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
 
-  if(!valid){ if(rmc.value.trim() && drawing.value.trim() && photos.length) showToast('Užpildykite privalomus laukus', 'error'); return; }
+  if(!valid){ if(rmc.value.trim() && drawing.value.trim() && photos.length && (okVal+nokVal>=1)) showToast('Užpildykite privalomus laukus', 'error'); return; }
 
   if(DEV_SKIP_LOGIN){
     console.log('[DEV] Login/upload skipped. Would submit:', {
@@ -694,7 +707,8 @@ async function submitForm(){
       pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       busena: tipas === 'RMC' ? busena.value : '',
       breziniNr: drawing.value.trim(),
-      rezultatas: rezultatas.value, darboTipas: darboTipas.value,
+      ok: okVal, nok: nokVal, darboTipas: darboTipas.value,
+      komentaras: document.getElementById('f_komentaras').value.trim(),
       photos: photos.length
     });
     showToast(`✓ [DEV] Patikrinta · ${photos.length} nuotr. (be įkėlimo)`, 'success');
@@ -741,7 +755,8 @@ async function submitForm(){
       Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       Busena:      tipas === 'RMC' ? busena.value : '',
       BreziniNr:   drawing.value.trim(),
-      Rezultatas:  rezultatas.value,
+      OK:          okVal,
+      NOK:         nokVal,
       DarboTipas:  darboTipas.value,
       Komentaras:  document.getElementById('f_komentaras').value.trim(),
       FolderPath:  folderRelPath,
@@ -761,7 +776,7 @@ async function submitForm(){
 }
 
 function clearForm(){
-  ['f_rmc','f_drawing','f_pavadinimas','f_busena','f_rezultatas','f_darboTipas','f_komentaras'].forEach(id=>{
+  ['f_rmc','f_drawing','f_pavadinimas','f_busena','f_ok','f_nok','f_darboTipas','f_komentaras'].forEach(id=>{
     const el = document.getElementById(id); el.value = ''; clearInvalid(el);
   });
   document.querySelectorAll('[name=tipas]').forEach(r=>r.checked=false);

@@ -281,7 +281,7 @@ const REDIRECT_URI   = 'https://iremas-automation.github.io/TKS/'; // must match
 const SP_SITE_URL    = 'https://achemosgrupelt.sharepoint.com/sites/MBL';
 const SP_FOLDER_BASE = '/sites/MBL/Bendrai naudojami dokumentai/Planavimas/RMC'; // photos go in <base>/<RMC numeris>/
 const SP_SCOPES      = ['https://achemosgrupelt.sharepoint.com/AllSites.Read', 'https://achemosgrupelt.sharepoint.com/AllSites.Write'];
-const SP_LIST_NAME   = 'RMC';   // the SharePoint list the record is written to (name it exactly this, no spaces)
+const SP_LIST_NAME   = 'TKS_list';   // the SharePoint list the record is written to (must match the list's name exactly)
 
 // ─────────── MSAL AUTH ───────────
 const msalInstance = new msal.PublicClientApplication({

@@ -371,6 +371,7 @@ async function uploadFileToSp(token, folderRelPath, filename, arrayBuffer){
 
 // Write the metadata row straight into the SharePoint list via REST (no Power Automate needed)
 let _spEntityType = null;
+let _spFieldMap = null;   // display title (lowercased) -> internal name
 async function getListEntityType(token){
   if(_spEntityType) return _spEntityType;
   const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')?$select=ListItemEntityTypeFullName`, {
@@ -381,8 +382,32 @@ async function getListEntityType(token){
   _spEntityType = j.d.ListItemEntityTypeFullName;
   return _spEntityType;
 }
+// Excel-created lists give columns internal names that differ from what you see,
+// so resolve display name -> internal name from the list itself.
+async function getFieldMap(token){
+  if(_spFieldMap) return _spFieldMap;
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/fields?$select=Title,InternalName,ReadOnlyField,Hidden`, {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+  });
+  if(!r.ok) throw new Error(`nepavyko nuskaityti stulpelių (${r.status})`);
+  const j = await r.json();
+  _spFieldMap = {};
+  for(const f of j.d.results){
+    if(f.Hidden || f.ReadOnlyField) continue;
+    _spFieldMap[f.Title.trim().toLowerCase()] = f.InternalName;
+  }
+  return _spFieldMap;
+}
 async function createListItem(token, fields){
   const type = await getListEntityType(token);
+  const map  = await getFieldMap(token);
+  const body = { '__metadata': { 'type': type } };
+  const missing = [];
+  for(const [disp, val] of Object.entries(fields)){
+    const internal = map[disp.toLowerCase()] || (disp === 'Title' ? 'Title' : null);
+    if(internal) body[internal] = val; else missing.push(disp);
+  }
+  if(missing.length) console.warn('SharePoint stulpeliai nerasti (praleista):', missing);
   const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items`, {
     method: 'POST',
     headers: {
@@ -390,7 +415,7 @@ async function createListItem(token, fields){
       Accept: 'application/json;odata=verbose',
       'Content-Type': 'application/json;odata=verbose'
     },
-    body: JSON.stringify(Object.assign({ '__metadata': { 'type': type } }, fields))
+    body: JSON.stringify(body)
   });
   if(!r.ok){
     const t = await r.text(); let m = r.status;

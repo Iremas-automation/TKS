@@ -115,8 +115,8 @@
   .lb-actions{display:flex;align-items:center;gap:10px;}
   .lb-btn{font-family:var(--font);font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);border:none;border-radius:var(--radius);padding:7px 12px;cursor:pointer;text-decoration:none;}
   .lb-btn:hover{background:rgba(255,255,255,.28);}
-  .lb-img{max-width:92vw;max-height:82vh;display:flex;align-items:center;justify-content:center;}
-  .lb-img img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:4px;}
+  .lb-img{max-width:92vw;max-height:82vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .lb-img img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:4px;user-select:none;-webkit-user-drag:none;will-change:transform;}
   .lb-load{color:#fff;font-size:14px;}
   .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
   .lb-nav:hover{background:rgba(255,255,255,.3);}
@@ -149,6 +149,9 @@
     transition:border-color .15s,box-shadow .15s;
   }
   .field textarea{resize:vertical;min-height:46px;line-height:1.5;}
+  .affix{display:flex;}
+  .affix .pfx{display:flex;align-items:center;padding:0 12px;background:var(--bg);border:1px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-size:14px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .affix input{flex:1;border-top-left-radius:0;border-bottom-left-radius:0;}
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
   .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
 
@@ -262,10 +265,16 @@
     <div class="sec-head"><div class="sec-title">Įrašo duomenys / Record Data</div></div>
     <div class="sec-body">
 
+      <!-- 0. Iremo užsakymo Nr -->
+      <div class="field">
+        <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" placeholder="260361" autocomplete="off"></div>
+      </div>
+
       <!-- 1. RMC numeris -->
       <div class="field">
         <label>RMC numeris <span class="req">*</span></label>
-        <input type="text" id="f_rmc" placeholder="pvz. RMC-2026-001" autocomplete="off" required>
+        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="f_rmc" placeholder="2026-001" autocomplete="off"></div>
       </div>
 
       <!-- Naujas / Remontas -->
@@ -322,11 +331,11 @@
       <div class="grid2">
         <div class="field">
           <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
-          <input type="number" id="f_ok" min="0" step="1" inputmode="numeric" placeholder="0">
+          <input type="number" id="f_ok" min="0" step="1" inputmode="numeric" placeholder="">
         </div>
         <div class="field">
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
-          <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="0">
+          <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="">
         </div>
       </div>
 
@@ -419,7 +428,9 @@
   <div class="lb-top">
     <span id="lb_count"></span>
     <span class="lb-actions">
-      <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">Atidaryti SharePoint ↗</a>
+      <button class="lb-btn" onclick="zoomBy(1/1.4)" title="Tolinti">－</button>
+      <button class="lb-btn" onclick="zoomBy(1.4)" title="Artinti">＋</button>
+      <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">SharePoint ↗</a>
       <button class="lb-btn" onclick="closeLightbox()">✕</button>
     </span>
   </div>
@@ -676,7 +687,7 @@ async function showLbImage(){
   document.getElementById('lb_open').href = new URL(SP_SITE_URL).origin + encodeURI(path);
   try{
     const url = await fetchImage(path);
-    if(_lbList[_lbIdx] === path) wrap.innerHTML = `<img src="${url}" alt="">`;
+    if(_lbList[_lbIdx] === path){ wrap.innerHTML = `<img src="${url}" alt="">`; resetZoom(); }
   }catch(e){ wrap.innerHTML = '<div class="lb-load">Nepavyko įkelti nuotraukos</div>'; }
 }
 function lbNav(d){ _lbIdx = (_lbIdx + d + _lbList.length) % _lbList.length; showLbImage(); }
@@ -687,6 +698,71 @@ document.addEventListener('keydown', e => {
   else if(e.key === 'ArrowLeft') lbNav(-1);
   else if(e.key === 'ArrowRight') lbNav(1);
 });
+
+// ── Zoom / pan for the lightbox image ──
+const _zoom = { scale:1, tx:0, ty:0, pointers:new Map(), startDist:0, startScale:1, panStart:null };
+function lbImgEl(){ return document.querySelector('#lb_img img'); }
+function clampScale(s){ return Math.max(1, Math.min(6, s)); }
+function applyZoom(){
+  const img = lbImgEl(); if(!img) return;
+  img.style.transform = `translate(${_zoom.tx}px, ${_zoom.ty}px) scale(${_zoom.scale})`;
+  img.style.cursor = _zoom.scale > 1 ? 'grab' : 'zoom-in';
+}
+function resetZoom(){ _zoom.scale = 1; _zoom.tx = 0; _zoom.ty = 0; _zoom.pointers.clear(); _zoom.panStart = null; applyZoom(); }
+function zoomBy(f){
+  _zoom.scale = clampScale(_zoom.scale * f);
+  if(_zoom.scale === 1){ _zoom.tx = 0; _zoom.ty = 0; }
+  applyZoom();
+}
+function setupZoom(){
+  const box = document.getElementById('lb_img');
+  box.style.touchAction = 'none';
+  box.addEventListener('wheel', e => {
+    if(!lbImgEl()) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.15 : 1/1.15);
+  }, { passive:false });
+  box.addEventListener('dblclick', () => {
+    if(!lbImgEl()) return;
+    if(_zoom.scale > 1) resetZoom(); else zoomBy(2.5);
+  });
+  box.addEventListener('pointerdown', e => {
+    if(!lbImgEl()) return;
+    box.setPointerCapture(e.pointerId);
+    _zoom.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(_zoom.pointers.size === 2){
+      const p = [..._zoom.pointers.values()];
+      _zoom.startDist = Math.hypot(p[0].x-p[1].x, p[0].y-p[1].y);
+      _zoom.startScale = _zoom.scale;
+    } else if(_zoom.pointers.size === 1 && _zoom.scale > 1){
+      _zoom.panStart = { x:e.clientX - _zoom.tx, y:e.clientY - _zoom.ty };
+    }
+  });
+  box.addEventListener('pointermove', e => {
+    if(!_zoom.pointers.has(e.pointerId)) return;
+    _zoom.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(_zoom.pointers.size === 2){
+      const p = [..._zoom.pointers.values()];
+      const dist = Math.hypot(p[0].x-p[1].x, p[0].y-p[1].y);
+      if(_zoom.startDist){
+        _zoom.scale = clampScale(_zoom.startScale * (dist / _zoom.startDist));
+        if(_zoom.scale === 1){ _zoom.tx = 0; _zoom.ty = 0; }
+        applyZoom();
+      }
+    } else if(_zoom.pointers.size === 1 && _zoom.panStart && _zoom.scale > 1){
+      _zoom.tx = e.clientX - _zoom.panStart.x;
+      _zoom.ty = e.clientY - _zoom.panStart.y;
+      applyZoom();
+    }
+  });
+  const up = e => {
+    _zoom.pointers.delete(e.pointerId);
+    if(_zoom.pointers.size < 2) _zoom.startDist = 0;
+    _zoom.panStart = null;
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+}
 
 function switchTab(name){
   const isForm = name === 'form';
@@ -731,6 +807,7 @@ async function loadList(){
       const folder = it[col('FolderPath')] || '';
       return {
         rmc:        it['Title'] || '',
+        iremo:      it[col('IremoNr')] || '',
         tipas:      it[col('Tipas')] || '',
         pavadinimas:it[col('Pavadinimas')] || '',
         busena:     it[col('Busena')] || '',
@@ -770,6 +847,7 @@ function renderList(records){
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
+    if(r.iremo)          parts.push('Užs.: <b>' + esc(r.iremo) + '</b>');
     if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
     if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
     if(r.darboTipas)     parts.push(esc(r.darboTipas));
@@ -852,7 +930,7 @@ function applyFilters(){
       if(from && d < new Date(from + 'T00:00:00')) return false;
       if(to   && d > new Date(to   + 'T23:59:59')) return false;
     }
-    if(q && ![r.rmc, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
+    if(q && ![r.rmc, r.iremo, r.tipas, r.pavadinimas, r.busena, r.brezinys, r.darboTipas, r.komentaras, r.by]
         .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
     return true;
   });
@@ -956,6 +1034,7 @@ function clearInvalid(el){ el.style.borderColor = ''; el.style.boxShadow = ''; }
 async function submitForm(){
   if(!currentUser){ document.getElementById('loginOverlay').classList.remove('hidden'); return; }
 
+  const iremo      = document.getElementById('f_iremo');
   const rmc        = document.getElementById('f_rmc');
   const drawing    = document.getElementById('f_drawing');
   const tipas      = document.querySelector('[name=tipas]:checked')?.value || '';
@@ -965,7 +1044,7 @@ async function submitForm(){
   const nokEl      = document.getElementById('f_nok');
   const darboTipas = document.getElementById('f_darboTipas');
 
-  [rmc, drawing, pav, busena, okEl, nokEl, darboTipas].forEach(clearInvalid);
+  [iremo, rmc, drawing, pav, busena, okEl, nokEl, darboTipas].forEach(clearInvalid);
 
   const okN  = parseInt(okEl.value, 10);
   const nokN = parseInt(nokEl.value, 10);
@@ -973,6 +1052,7 @@ async function submitForm(){
   const nokVal = Number.isFinite(nokN) ? nokN : 0;
 
   let valid = true;
+  if(!iremo.value.trim()){ markInvalid(iremo); valid = false; }
   if(!rmc.value.trim()){ markInvalid(rmc); valid = false; }
   if(!drawing.value.trim()){ markInvalid(drawing); valid = false; }
   if(!tipas){ showToast('Pasirinkite tipą (Subranga / RMC)', 'error'); valid = false; }
@@ -984,11 +1064,12 @@ async function submitForm(){
   if(!darboTipas.value){ markInvalid(darboTipas); valid = false; }
   if(photos.length === 0){ document.getElementById('photozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
 
-  if(!valid){ if(rmc.value.trim() && drawing.value.trim() && photos.length && (okVal+nokVal>=1)) showToast('Užpildykite privalomus laukus', 'error'); return; }
+  if(!valid){ if(iremo.value.trim() && rmc.value.trim() && drawing.value.trim() && photos.length && (okVal+nokVal>=1)) showToast('Užpildykite privalomus laukus', 'error'); return; }
 
   if(DEV_SKIP_LOGIN){
     console.log('[DEV] Login/upload skipped. Would submit:', {
-      rmcNumber: rmc.value.trim(), tipas,
+      iremoNr: 'I-' + iremo.value.trim(),
+      rmcNumber: 'RMC-' + rmc.value.trim(), tipas,
       pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       busena: tipas === 'RMC' ? busena.value : '',
       breziniNr: drawing.value.trim(),
@@ -1004,7 +1085,7 @@ async function submitForm(){
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
 
-  const rmcNumber = rmc.value.trim();
+  const rmcNumber = 'RMC-' + rmc.value.trim();
   const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
   const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
 
@@ -1036,6 +1117,7 @@ async function submitForm(){
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
     await createListItem(token, {
       Title:       rmcNumber,
+      IremoNr:     'I-' + iremo.value.trim(),
       Tipas:       tipas,
       Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       Busena:      tipas === 'RMC' ? busena.value : '',
@@ -1061,7 +1143,7 @@ async function submitForm(){
 }
 
 function clearForm(){
-  ['f_rmc','f_drawing','f_pavadinimas','f_busena','f_ok','f_nok','f_darboTipas','f_komentaras'].forEach(id=>{
+  ['f_iremo','f_rmc','f_drawing','f_pavadinimas','f_busena','f_ok','f_nok','f_darboTipas','f_komentaras'].forEach(id=>{
     const el = document.getElementById(id); el.value = ''; clearInvalid(el);
   });
   document.querySelectorAll('[name=tipas]').forEach(r=>r.checked=false);
@@ -1085,6 +1167,7 @@ function toggleTheme(){
 applyTheme(localStorage.getItem('mbl-theme') || 'light');
 
 // Init
+setupZoom();
 initAuth();
 </script>
 </body>

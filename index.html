@@ -792,7 +792,8 @@ async function loadList(){
   const cont = document.getElementById('list_container');
   if(DEV_SKIP_LOGIN){ cont.innerHTML = '<div class="list-msg">Sąrašas nepasiekiamas DEV režime.</div>'; document.getElementById('list_count').textContent=''; return; }
   if(!currentUser){ cont.innerHTML = '<div class="list-msg">Prisijunkite, kad matytumėte sąrašą.</div>'; return; }
-  cont.innerHTML = '<div class="list-msg">Kraunama…</div>';
+  const firstLoad = _allRecords.length === 0;
+  if(firstLoad) cont.innerHTML = '<div class="list-msg">Kraunama…</div>';   // only on first load — avoids collapsing the page (which jumps scroll to top) on background refreshes
   try{
     const token = await getSpToken();
     const map = await getFieldMap(token);
@@ -826,9 +827,12 @@ async function loadList(){
     });
     _lastUpdated = new Date();
     populateUserFilter();
+    const sy = window.scrollY;
     applyFilters();
+    window.scrollTo(0, sy);      // keep the user where they were during background refresh
   }catch(e){
-    cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
+    if(firstLoad) cont.innerHTML = '<div class="list-msg err">Klaida: ' + e.message + '</div>';
+    // on a background refresh, keep showing the current list instead of clobbering it with an error
   }
 }
 

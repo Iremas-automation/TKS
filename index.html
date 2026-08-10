@@ -440,7 +440,10 @@
   <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
   <div class="lb-img" id="lb_img"></div>
   <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
-  <button class="lb-rotate" onclick="rotatePhoto()">↻ Pasukti</button>
+  <div class="lb-rotate">
+    <button onclick="rotatePhoto(-1)" title="Sukti kairėn">↺</button>
+    <button onclick="rotatePhoto(1)" title="Sukti dešinėn">↻</button>
+  </div>
 </div>
 
 <script>
@@ -713,7 +716,7 @@ function applyZoom(){
   img.style.cursor = _zoom.scale > 1 ? 'grab' : 'zoom-in';
 }
 function resetZoom(){ _zoom.scale = 1; _zoom.tx = 0; _zoom.ty = 0; _zoom.rot = 0; _zoom.pointers.clear(); _zoom.panStart = null; applyZoom(); }
-function rotatePhoto(){ if(!lbImgEl()) return; _zoom.rot = (_zoom.rot + 90) % 360; applyZoom(); }
+function rotatePhoto(dir){ if(!lbImgEl()) return; _zoom.rot = (_zoom.rot + dir * 90 + 360) % 360; applyZoom(); }
 function zoomBy(f){
   _zoom.scale = clampScale(_zoom.scale * f);
   if(_zoom.scale === 1){ _zoom.tx = 0; _zoom.ty = 0; }

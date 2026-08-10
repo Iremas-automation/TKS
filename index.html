@@ -121,6 +121,9 @@
   .lb-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:48px;height:48px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
   .lb-nav:hover{background:rgba(255,255,255,.3);}
   .lb-prev{left:12px;} .lb-next{right:12px;}
+  .lb-rotate{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:3;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:30px;padding:13px 26px;font-family:var(--font);font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+  .lb-rotate:hover{background:rgba(255,255,255,.3);}
+  .lb-rotate:active{transform:translateX(-50%) scale(.96);}
   @media(max-width:640px){
     .list-layout{flex-direction:column;}
     .filter-panel{width:100%;position:static;display:none;}
@@ -430,7 +433,6 @@
     <span class="lb-actions">
       <button class="lb-btn" onclick="zoomBy(1/1.4)" title="Tolinti">－</button>
       <button class="lb-btn" onclick="zoomBy(1.4)" title="Artinti">＋</button>
-      <button class="lb-btn" onclick="rotatePhoto()" title="Pasukti">↻</button>
       <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">SharePoint ↗</a>
       <button class="lb-btn" onclick="closeLightbox()">✕</button>
     </span>
@@ -438,6 +440,7 @@
   <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
   <div class="lb-img" id="lb_img"></div>
   <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+  <button class="lb-rotate" onclick="rotatePhoto()">↻ Pasukti</button>
 </div>
 
 <script>

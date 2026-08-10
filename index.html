@@ -430,6 +430,7 @@
     <span class="lb-actions">
       <button class="lb-btn" onclick="zoomBy(1/1.4)" title="Tolinti">－</button>
       <button class="lb-btn" onclick="zoomBy(1.4)" title="Artinti">＋</button>
+      <button class="lb-btn" onclick="rotatePhoto()" title="Pasukti">↻</button>
       <a id="lb_open" href="#" target="_blank" rel="noopener" class="lb-btn">SharePoint ↗</a>
       <button class="lb-btn" onclick="closeLightbox()">✕</button>
     </span>
@@ -700,15 +701,16 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Zoom / pan for the lightbox image ──
-const _zoom = { scale:1, tx:0, ty:0, pointers:new Map(), startDist:0, startScale:1, panStart:null };
+const _zoom = { scale:1, tx:0, ty:0, rot:0, pointers:new Map(), startDist:0, startScale:1, panStart:null };
 function lbImgEl(){ return document.querySelector('#lb_img img'); }
 function clampScale(s){ return Math.max(1, Math.min(6, s)); }
 function applyZoom(){
   const img = lbImgEl(); if(!img) return;
-  img.style.transform = `translate(${_zoom.tx}px, ${_zoom.ty}px) scale(${_zoom.scale})`;
+  img.style.transform = `translate(${_zoom.tx}px, ${_zoom.ty}px) scale(${_zoom.scale}) rotate(${_zoom.rot}deg)`;
   img.style.cursor = _zoom.scale > 1 ? 'grab' : 'zoom-in';
 }
-function resetZoom(){ _zoom.scale = 1; _zoom.tx = 0; _zoom.ty = 0; _zoom.pointers.clear(); _zoom.panStart = null; applyZoom(); }
+function resetZoom(){ _zoom.scale = 1; _zoom.tx = 0; _zoom.ty = 0; _zoom.rot = 0; _zoom.pointers.clear(); _zoom.panStart = null; applyZoom(); }
+function rotatePhoto(){ if(!lbImgEl()) return; _zoom.rot = (_zoom.rot + 90) % 360; applyZoom(); }
 function zoomBy(f){
   _zoom.scale = clampScale(_zoom.scale * f);
   if(_zoom.scale === 1){ _zoom.tx = 0; _zoom.ty = 0; }

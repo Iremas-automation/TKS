@@ -276,8 +276,8 @@
 </div>
 
 <div class="tabs">
-  <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauji matavimai</button>
-  <button class="tab" id="tabbtn-tests" onclick="switchTab('tests')">🧪 RMC bandymai</button>
+  <button class="tab active" id="tabbtn-form" onclick="gotoTab('form')">＋ Nauji matavimai</button>
+  <button class="tab" id="tabbtn-tests" onclick="gotoTab('tests')">🧪 RMC bandymai</button>
   <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Matavimų registras</button>
 </div>
 
@@ -963,6 +963,12 @@ function setupZoom(){
   box.addEventListener('pointercancel', up);
 }
 
+// Manual tab clicks clear the target form (fresh each time); prefill paths use switchTab directly
+function gotoTab(name){
+  if(name === 'form') clearForm();
+  else if(name === 'tests') clearTestForm();
+  switchTab(name);
+}
 function switchTab(name){
   ['form','tests','list'].forEach(t => {
     document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
@@ -1306,37 +1312,19 @@ async function submitForm(){
 
   const rmcNumber = 'RMC-' + rmc.value.trim();
   const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
+  const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
 
   try{
     btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
 
-    // 1) Create the list item first so SharePoint assigns the ID (protocol number)
-    btn.innerHTML = '<span class="spinner"></span>Kuriamas įrašas…';
-    const newId = await createListItem(token, {
-      Title:       rmcNumber,
-      IremoNr:     'I-' + iremo.value.trim(),
-      Tipas:       tipas,
-      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
-      Busena:      tipas === 'RMC' ? busena.value : '',
-      Kontrole:    tipas === 'RMC' ? kontrole.value : '',
-      BreziniNr:   drawing.value.trim(),
-      OK:          okVal,
-      NOK:         nokVal,
-      DarboTipas:  darboTipas.value,
-      Komentaras:  document.getElementById('f_komentaras').value.trim(),
-      SubmittedBy: currentUser?.name || ''
-    });
-
-    // 2) Folder name includes the protocol number, e.g. RMC-2026-001_42
-    const folderName = `${safeName}_${newId}`;
-    const folderRelPath = `${SP_FOLDER_BASE}/${folderName}`;
+    // 1) Create the folder
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
     const folderOk = await ensureSpFolder(token, folderRelPath);
     if(!folderOk) throw new Error('nepavyko sukurti SharePoint aplanko');
 
-    // 3) Compress + upload each photo into it
+    // 2) Compress + upload each photo into it
     btn.innerHTML = '<span class="spinner"></span>Keliamos nuotraukos…';
     const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
     const uploadedNames = [];
@@ -1350,12 +1338,24 @@ async function submitForm(){
     }
     if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
 
-    // 4) Write the folder path + photo info back onto the item
+    // 3) Create the list item (SharePoint assigns the ID = protocol number)
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
-    await updateListItem(token, newId, {
-      FolderPath: folderRelPath,
-      PhotoCount: uploadedNames.length,
-      PhotoNames: uploadedNames.join(', ')
+    const newId = await createListItem(token, {
+      Title:       rmcNumber,
+      IremoNr:     'I-' + iremo.value.trim(),
+      Tipas:       tipas,
+      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      Busena:      tipas === 'RMC' ? busena.value : '',
+      Kontrole:    tipas === 'RMC' ? kontrole.value : '',
+      BreziniNr:   drawing.value.trim(),
+      OK:          okVal,
+      NOK:         nokVal,
+      DarboTipas:  darboTipas.value,
+      Komentaras:  document.getElementById('f_komentaras').value.trim(),
+      FolderPath:  folderRelPath,
+      PhotoCount:  uploadedNames.length,
+      PhotoNames:  uploadedNames.join(', '),
+      SubmittedBy: currentUser?.name || ''
     });
 
     showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
@@ -1401,7 +1401,7 @@ function onTestChange(){
   if(!def){ std.innerHTML = ''; opts.innerHTML = ''; return; }
   std.innerHTML = `Standartas: <b>${esc(def.standard)}</b> — pažymėkite lygį`;
   opts.innerHTML = def.criteria.map((c,i) =>
-    `<div class="crit-opt"><input type="checkbox" id="xc_${i}" value="${esc(c)}"><label for="xc_${i}">${esc(c)}</label></div>`).join('');
+    `<div class="crit-opt"><input type="radio" name="xcrit" id="xc_${i}" value="${esc(c)}"><label for="xc_${i}">${esc(c)}</label></div>`).join('');
 }
 function getCheckedCriteria(){
   return [...document.querySelectorAll('#x_crit input:checked')].map(el => el.value);
@@ -1491,27 +1491,10 @@ async function submitTestForm(){
   }
 
   try{
-    btn.innerHTML = '<span class="spinner"></span>Kuriamas įrašas…';
+    btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
-    const newId = await createListItem(token, {
-      Title:       rmcNumber,
-      IremoNr:     'I-' + iremo.value.trim(),
-      Tipas:       tipas,
-      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
-      Busena:      tipas === 'RMC' ? busena.value : '',
-      Kontrole:    tipas === 'RMC' ? kontrole.value : '',
-      BreziniNr:   drawing.value.trim(),
-      Testas:      test.value,
-      Standartas:  def.standard || '',
-      Kriterijus:  crit.join(', '),
-      OK:          okVal,
-      NOK:         nokVal,
-      DarboTipas:  darboTip.value,
-      Komentaras:  document.getElementById('x_komentaras').value.trim(),
-      SubmittedBy: currentUser?.name || ''
-    });
 
-    const folderRelPath = `${SP_FOLDER_BASE}/${safeName}_${newId}`;
+    const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
     if(!await ensureSpFolder(token, folderRelPath)) throw new Error('nepavyko sukurti aplanko');
@@ -1529,7 +1512,26 @@ async function submitTestForm(){
     if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
 
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
-    await updateListItem(token, newId, { FolderPath: folderRelPath, PhotoCount: uploadedNames.length, PhotoNames: uploadedNames.join(', ') });
+    const newId = await createListItem(token, {
+      Title:       rmcNumber,
+      IremoNr:     'I-' + iremo.value.trim(),
+      Tipas:       tipas,
+      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      Busena:      tipas === 'RMC' ? busena.value : '',
+      Kontrole:    tipas === 'RMC' ? kontrole.value : '',
+      BreziniNr:   drawing.value.trim(),
+      Testas:      test.value,
+      Standartas:  def.standard || '',
+      Kriterijus:  crit.join(', '),
+      OK:          okVal,
+      NOK:         nokVal,
+      DarboTipas:  darboTip.value,
+      Komentaras:  document.getElementById('x_komentaras').value.trim(),
+      FolderPath:  folderRelPath,
+      PhotoCount:  uploadedNames.length,
+      PhotoNames:  uploadedNames.join(', '),
+      SubmittedBy: currentUser?.name || ''
+    });
 
     showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(() => afterSubmit('tests', {

@@ -81,6 +81,13 @@
   .rec-meta b{color:var(--ink);font-weight:600;}
   .rec-folder{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--orange-dim);text-decoration:none;}
   .rec-folder:hover{text-decoration:underline;}
+  .rec-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .rec-btn{font-family:var(--font);font-size:12px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--orange-dim);border-radius:var(--radius);padding:6px 12px;cursor:pointer;}
+  .rec-btn:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
+  .resubmit{max-width:560px;margin:16px auto 0;padding:14px 18px;background:rgba(30,126,74,0.1);border:1px solid var(--green);border-radius:var(--radius);}
+  .resubmit #resubmitMsg{display:block;font-size:13px;color:var(--ink);margin-bottom:10px;font-weight:600;}
+  .resubmit-btns{display:flex;flex-wrap:wrap;gap:8px;}
+  .resubmit-btns .btn{padding:9px 16px;font-size:13px;}
   .rec-comment{font-size:12px;color:var(--ink);background:var(--bg);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;}
 
   /* Filters (side panel) */
@@ -272,6 +279,14 @@
   <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauji matavimai</button>
   <button class="tab" id="tabbtn-tests" onclick="switchTab('tests')">🧪 RMC bandymai</button>
   <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Matavimų registras</button>
+</div>
+
+<div class="resubmit" id="resubmit" style="display:none">
+  <span id="resubmitMsg"></span>
+  <div class="resubmit-btns">
+    <button class="btn btn-pri" onclick="addAnother()">➕ Pridėti dar (tie patys duomenys)</button>
+    <button class="btn btn-sec" onclick="dismissResubmit()">Uždaryti</button>
+  </div>
 </div>
 
 <div class="form-body" id="tab-form">
@@ -953,6 +968,7 @@ function switchTab(name){
     document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
     document.getElementById('tabbtn-' + t).classList.toggle('active', t === name);
   });
+  if(name === 'list'){ document.getElementById('resubmit').style.display = 'none'; }
   if(name === 'list'){
     loadList();
     if(!_listTimer && !DEV_SKIP_LOGIN) _listTimer = setInterval(loadList, 30000);
@@ -1062,6 +1078,10 @@ function renderList(records){
         ${r.folderUrl
           ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
           : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
+        <div class="rec-actions">
+          <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
+          <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
+        </div>
       </div>
       <div class="rec-badges">${badges}</div>
     </div>`;
@@ -1339,7 +1359,12 @@ async function submitForm(){
     });
 
     showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
-    setTimeout(clearForm, 1300);
+    setTimeout(() => afterSubmit('form', {
+      iremo: 'I-' + iremo.value.trim(), rmc: rmcNumber, brezinys: drawing.value.trim(),
+      darboTipas: darboTipas.value, tipas,
+      pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      busena: tipas === 'RMC' ? busena.value : '', kontrole: tipas === 'RMC' ? kontrole.value : ''
+    }, newId), 1300);
   } catch(e){
     showToast('Klaida: ' + e.message, 'error');
   } finally {
@@ -1507,7 +1532,12 @@ async function submitTestForm(){
     await updateListItem(token, newId, { FolderPath: folderRelPath, PhotoCount: uploadedNames.length, PhotoNames: uploadedNames.join(', ') });
 
     showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
-    setTimeout(clearTestForm, 1300);
+    setTimeout(() => afterSubmit('tests', {
+      iremo: 'I-' + iremo.value.trim(), rmc: rmcNumber, brezinys: drawing.value.trim(),
+      darboTipas: darboTip.value, tipas,
+      pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      busena: tipas === 'RMC' ? busena.value : '', kontrole: tipas === 'RMC' ? kontrole.value : ''
+    }, newId), 1300);
   } catch(e){
     showToast('Klaida: ' + e.message, 'error');
   } finally {
@@ -1528,6 +1558,52 @@ function clearTestForm(){
   onXTypeChange();
   onTestChange();
 }
+
+// ─────────── PREFILL / ADD ANOTHER ───────────
+// r holds the shared job data (iremo/rmc are prefixed like in the list records)
+function prefillMain(r){
+  clearForm();
+  document.getElementById('f_iremo').value   = (r.iremo || '').replace(/^I-/, '');
+  document.getElementById('f_rmc').value      = (r.rmc || '').replace(/^RMC-/, '');
+  document.getElementById('f_drawing').value  = r.brezinys || '';
+  document.getElementById('f_darboTipas').value = r.darboTipas || '';
+  if(r.tipas){ const radio = document.getElementById(r.tipas === 'RMC' ? 't_rmc' : 't_sub'); if(radio) radio.checked = true; onTypeChange(); }
+  if(r.tipas === 'Subranga') document.getElementById('f_pavadinimas').value = r.pavadinimas || '';
+  if(r.tipas === 'RMC'){ document.getElementById('f_busena').value = r.busena || ''; document.getElementById('f_kontrole').value = r.kontrole || ''; }
+}
+function prefillTests(r){
+  clearTestForm();
+  document.getElementById('x_iremo').value   = (r.iremo || '').replace(/^I-/, '');
+  document.getElementById('x_rmc').value      = (r.rmc || '').replace(/^RMC-/, '');
+  document.getElementById('x_drawing').value  = r.brezinys || '';
+  document.getElementById('x_darboTipas').value = r.darboTipas || '';
+  if(r.tipas){ const radio = document.getElementById(r.tipas === 'RMC' ? 'x_trmc' : 'x_tsub'); if(radio) radio.checked = true; onXTypeChange(); }
+  if(r.tipas === 'Subranga') document.getElementById('x_pavadinimas').value = r.pavadinimas || '';
+  if(r.tipas === 'RMC'){ document.getElementById('x_busena').value = r.busena || ''; document.getElementById('x_kontrole').value = r.kontrole || ''; }
+}
+function newFromRecord(vi, target){
+  const r = _viewRecords[vi]; if(!r) return;
+  if(target === 'tests') prefillTests(r); else prefillMain(r);
+  dismissResubmit();
+  switchTab(target);
+  window.scrollTo(0, 0);
+}
+
+// After a successful submit — offer to log another with the same numbers
+let _lastForm = 'form', _lastData = null;
+function afterSubmit(formType, data, id){
+  _lastForm = formType; _lastData = data;
+  if(formType === 'tests') clearTestForm(); else clearForm();
+  document.getElementById('resubmitMsg').textContent = `✓ Protokolas Nr. ${id} pateiktas. Pridėti dar vieną tiems patiems numeriams?`;
+  document.getElementById('resubmit').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+function addAnother(){
+  if(!_lastData) return;
+  if(_lastForm === 'tests') prefillTests(_lastData); else prefillMain(_lastData);
+  dismissResubmit();
+}
+function dismissResubmit(){ document.getElementById('resubmit').style.display = 'none'; }
 
 // Theme
 function applyTheme(theme){

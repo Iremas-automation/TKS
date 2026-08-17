@@ -539,6 +539,9 @@
           <option value="">— Pasirinkite —</option>
           <option value="VT">VT — Visual Testing</option>
           <option value="PT">PT — Penetrant Testing</option>
+          <option value="MT">MT — Magnetic Particle Testing</option>
+          <option value="RT">RT — Radiographic Testing</option>
+          <option value="UT">UT — Ultrasonic Testing</option>
         </select>
       </div>
 
@@ -1388,7 +1391,10 @@ function clearForm(){
 // ─────────── RMC BANDYMAI (TESTS) TAB ───────────
 const TEST_DEFS = {
   VT: { standard: 'ISO 5817',  criteria: ['B','C','D'] },
-  PT: { standard: 'ISO 23277', criteria: ['2','3','X'] }
+  PT: { standard: 'ISO 23277', criteria: ['2','3','2X'] },
+  MT: { standard: 'ISO 23278', criteria: ['2','3','2X'] },
+  RT: { standard: 'ISO 10675', criteria: ['1','2','3'] },
+  UT: { standard: 'ISO 11666', criteria: ['2','3'] }
 };
 
 function onTestChange(){

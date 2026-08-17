@@ -157,6 +157,14 @@
   .affix{display:flex;}
   .affix .pfx{display:flex;align-items:center;padding:0 12px;background:var(--bg);border:1px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-size:14px;font-weight:700;color:var(--muted);white-space:nowrap;}
   .affix input{flex:1;border-top-left-radius:0;border-bottom-left-radius:0;}
+  .crit-std{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .crit-std b{color:var(--ink);font-weight:700;}
+  .crit-opts{display:flex;flex-wrap:wrap;gap:8px;}
+  .crit-opt{position:relative;}
+  .crit-opt input{position:absolute;opacity:0;pointer-events:none;}
+  .crit-opt label{display:flex;align-items:center;justify-content:center;min-width:46px;cursor:pointer;border:2px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:14px;font-weight:600;color:var(--ink);}
+  .crit-opt label:hover{border-color:var(--orange-dim);}
+  .crit-opt input:checked + label{border-color:var(--orange);background:rgba(232,100,10,0.1);color:var(--orange-dim);}
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,100,10,.14);}
   .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
 
@@ -262,6 +270,7 @@
 
 <div class="tabs">
   <button class="tab active" id="tabbtn-form" onclick="switchTab('form')">＋ Nauji matavimai</button>
+  <button class="tab" id="tabbtn-tests" onclick="switchTab('tests')">🧪 RMC bandymai</button>
   <button class="tab" id="tabbtn-list" onclick="switchTab('list')">☰ Matavimų registras</button>
 </div>
 
@@ -438,6 +447,132 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="form-body" id="tab-tests" style="display:none">
+  <div class="section">
+    <div class="sec-head"><div class="sec-title">RMC bandymai / NDT</div></div>
+    <div class="sec-body">
+
+      <div class="field">
+        <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" placeholder="260361" autocomplete="off"></div>
+      </div>
+
+      <div class="field">
+        <label>RMC numeris <span class="req">*</span></label>
+        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="x_rmc" placeholder="2026-001" autocomplete="off"></div>
+      </div>
+
+      <div class="field">
+        <label>Naujas / Remontas <span class="req">*</span><br><span class="lt">New / Repair</span></label>
+        <select id="x_darboTipas">
+          <option value="">— Pasirinkite —</option>
+          <option value="Naujas">Naujas</option>
+          <option value="Remontas">Remontas</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Tipas <span class="req">*</span></label>
+        <div class="seg">
+          <div class="seg-opt">
+            <input type="radio" name="xtipas" id="x_tsub" value="Subranga" onchange="onXTypeChange()">
+            <label for="x_tsub">Subranga<span class="sub">Subcontract</span></label>
+          </div>
+          <div class="seg-opt">
+            <input type="radio" name="xtipas" id="x_trmc" value="RMC" onchange="onXTypeChange()">
+            <label for="x_trmc">RMC<span class="sub">Internal</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="field conditional" id="x_wrap_pavadinimas">
+        <label>Pavadinimas <span class="req">*</span><br><span class="lt">Name</span></label>
+        <input type="text" id="x_pavadinimas" placeholder="Subrangovo / darbo pavadinimas" autocomplete="off">
+      </div>
+
+      <div class="field conditional" id="x_wrap_kontrole">
+        <label>Kontrolė <span class="req">*</span><br><span class="lt">Inspection</span></label>
+        <select id="x_kontrole">
+          <option value="">— Pasirinkite —</option>
+          <option value="Galutinis">Galutinis (Final inspection)</option>
+          <option value="Tarpinis">Tarpinis (In Process)</option>
+        </select>
+      </div>
+
+      <div class="field conditional" id="x_wrap_busena">
+        <label>Operacija <span class="req">*</span><br><span class="lt">Operation</span></label>
+        <select id="x_busena">
+          <option value="">— Pasirinkite —</option>
+          <option value="Paruošimas">Paruošimas</option>
+          <option value="Mechaninis">Mechaninis</option>
+          <option value="Prieš suvirinimą">Prieš suvirinimą</option>
+          <option value="Suvirinimas">Suvirinimas</option>
+          <option value="Dažymas">Dažymas</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Detalės brėžinio numeris <span class="req">*</span><br><span class="lt">Part Drawing No.</span></label>
+        <input type="text" id="x_drawing" placeholder="pvz. BR-877-14" autocomplete="off">
+      </div>
+
+      <!-- Bandymas (test) -->
+      <div class="field">
+        <label>Bandymas <span class="req">*</span><br><span class="lt">Select test</span></label>
+        <select id="x_test" onchange="onTestChange()">
+          <option value="">— Pasirinkite —</option>
+          <option value="VT">VT — Visual Testing</option>
+          <option value="PT">PT — Penetrant Testing</option>
+        </select>
+      </div>
+
+      <!-- Acceptance criteria (checkboxes, depends on test) -->
+      <div class="field conditional" id="x_wrap_crit">
+        <label>Priėmimo kriterijai <span class="req">*</span><br><span class="lt">Acceptance criteria</span></label>
+        <div class="crit-std" id="x_std"></div>
+        <div class="crit-opts" id="x_crit"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
+          <input type="number" id="x_ok" min="0" step="1" inputmode="numeric" placeholder="">
+        </div>
+        <div class="field">
+          <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
+          <input type="number" id="x_nok" min="0" step="1" inputmode="numeric" placeholder="">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Komentaras<br><span class="lt">Comment</span></label>
+        <textarea id="x_komentaras" rows="3" placeholder="Papildoma informacija (nebūtina)"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Nuotraukos <span class="req">*</span><br><span class="lt">Photos — bent 1 privaloma / at least 1 required</span></label>
+        <div class="photozone" id="xphotozone">
+          <div class="pz-icon">📷</div>
+          <div class="pz-text">Nufotografuokite arba pasirinkite nuotraukas</div>
+          <div class="pz-btns">
+            <button type="button" class="pz-btn pz-btn-cam" onclick="document.getElementById('xp_camera').click()">📷 Fotografuoti</button>
+            <button type="button" class="pz-btn" onclick="document.getElementById('xp_gallery').click()">🖼 Pasirinkti</button>
+          </div>
+          <input type="file" id="xp_camera" accept="image/*" capture="environment" style="display:none" onchange="addXPhotos(this)">
+          <input type="file" id="xp_gallery" accept="image/*" multiple style="display:none" onchange="addXPhotos(this)">
+        </div>
+        <div class="photo-grid" id="xphoto_grid"></div>
+      </div>
+
+      <div class="form-footer">
+        <button class="btn btn-sec" onclick="clearTestForm()">Išvalyti</button>
+        <button class="btn btn-pri" id="xsubmitBtn" onclick="submitTestForm()">Pateikti / Submit</button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <div class="lightbox" id="lightbox" style="display:none" onclick="if(event.target.id==='lightbox')closeLightbox()">
   <div class="lb-top">
@@ -814,16 +949,15 @@ function setupZoom(){
 }
 
 function switchTab(name){
-  const isForm = name === 'form';
-  document.getElementById('tab-form').style.display = isForm ? '' : 'none';
-  document.getElementById('tab-list').style.display = isForm ? 'none' : '';
-  document.getElementById('tabbtn-form').classList.toggle('active', isForm);
-  document.getElementById('tabbtn-list').classList.toggle('active', !isForm);
-  if(isForm){
-    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }   // stop refreshing when away
-  } else {
+  ['form','tests','list'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
+    document.getElementById('tabbtn-' + t).classList.toggle('active', t === name);
+  });
+  if(name === 'list'){
     loadList();
-    if(!_listTimer && !DEV_SKIP_LOGIN) _listTimer = setInterval(loadList, 30000);   // auto-refresh every 30s
+    if(!_listTimer && !DEV_SKIP_LOGIN) _listTimer = setInterval(loadList, 30000);
+  } else {
+    if(_listTimer){ clearInterval(_listTimer); _listTimer = null; }
   }
 }
 
@@ -867,6 +1001,9 @@ async function loadList(){
         ok:         it[col('OK')] ?? '',
         nok:        it[col('NOK')] ?? '',
         darboTipas: it[col('DarboTipas')] || '',
+        testas:     it[col('Testas')] || '',
+        standartas: it[col('Standartas')] || '',
+        kriterijus: it[col('Kriterijus')] || '',
         komentaras: it[col('Komentaras')] || '',
         photoCount: it[col('PhotoCount')] ?? '',
         photoNames: it[col('PhotoNames')] || '',
@@ -905,6 +1042,7 @@ function renderList(records){
     if(r.iremo)          parts.push('Užs.: <b>' + esc(r.iremo) + '</b>');
     if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
     if(r.kontrole)       parts.push(esc(r.kontrole));
+    if(r.testas)         parts.push('Bandymas: <b>' + esc(r.testas) + '</b>' + (r.standartas ? ' · ' + esc(r.standartas) : '') + (r.kriterijus ? ' · ' + esc(r.kriterijus) : ''));
     if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
     if(r.darboTipas)     parts.push(esc(r.darboTipas));
     const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
@@ -1220,6 +1358,175 @@ function clearForm(){
   renderPhotos();
   document.getElementById('photozone').style.borderColor = '';
   onTypeChange();
+}
+
+// ─────────── RMC BANDYMAI (TESTS) TAB ───────────
+const TEST_DEFS = {
+  VT: { standard: 'ISO 5817',  criteria: ['B','C','D'] },
+  PT: { standard: 'ISO 23277', criteria: ['2','3','X'] }
+};
+
+function onTestChange(){
+  const test = document.getElementById('x_test').value;
+  const wrap = document.getElementById('x_wrap_crit');
+  const std  = document.getElementById('x_std');
+  const opts = document.getElementById('x_crit');
+  const def  = TEST_DEFS[test];
+  wrap.classList.toggle('show', !!def);
+  if(!def){ std.innerHTML = ''; opts.innerHTML = ''; return; }
+  std.innerHTML = `Standartas: <b>${esc(def.standard)}</b> — pažymėkite lygį`;
+  opts.innerHTML = def.criteria.map((c,i) =>
+    `<div class="crit-opt"><input type="checkbox" id="xc_${i}" value="${esc(c)}"><label for="xc_${i}">${esc(c)}</label></div>`).join('');
+}
+function getCheckedCriteria(){
+  return [...document.querySelectorAll('#x_crit input:checked')].map(el => el.value);
+}
+
+function onXTypeChange(){
+  const tipas = document.querySelector('[name=xtipas]:checked')?.value;
+  document.getElementById('x_wrap_pavadinimas').classList.toggle('show', tipas === 'Subranga');
+  document.getElementById('x_wrap_busena').classList.toggle('show', tipas === 'RMC');
+  document.getElementById('x_wrap_kontrole').classList.toggle('show', tipas === 'RMC');
+  if(tipas !== 'Subranga') document.getElementById('x_pavadinimas').value = '';
+  if(tipas !== 'RMC'){ document.getElementById('x_busena').value = ''; document.getElementById('x_kontrole').value = ''; }
+}
+
+// Photos for the tests form (separate from the main form)
+let xphotos = [];
+let xphotoSeq = 0;
+function addXPhotos(input){
+  Array.from(input.files || []).filter(f => f.type.startsWith('image/')).forEach(f => {
+    xphotos.push({ file:f, url:URL.createObjectURL(f), id:'xp' + (++xphotoSeq) });
+  });
+  input.value = '';
+  renderXPhotos();
+}
+function removeXPhoto(id){
+  const p = xphotos.find(x => x.id === id);
+  if(p) URL.revokeObjectURL(p.url);
+  xphotos = xphotos.filter(x => x.id !== id);
+  renderXPhotos();
+}
+function renderXPhotos(){
+  document.getElementById('xphoto_grid').innerHTML = xphotos.map(p => `
+    <div class="photo-thumb"><img src="${p.url}" alt="">
+      <button type="button" class="rm" onclick="removeXPhoto('${p.id}')" title="Pašalinti">✕</button></div>`).join('');
+  const pz = document.getElementById('xphotozone');
+  pz.classList.toggle('has', xphotos.length > 0);
+  if(xphotos.length) pz.style.borderColor = '';
+}
+
+async function submitTestForm(){
+  if(!currentUser){ document.getElementById('loginOverlay').classList.remove('hidden'); return; }
+
+  const iremo    = document.getElementById('x_iremo');
+  const rmc      = document.getElementById('x_rmc');
+  const drawing  = document.getElementById('x_drawing');
+  const tipas    = document.querySelector('[name=xtipas]:checked')?.value || '';
+  const pav      = document.getElementById('x_pavadinimas');
+  const busena   = document.getElementById('x_busena');
+  const kontrole = document.getElementById('x_kontrole');
+  const darboTip = document.getElementById('x_darboTipas');
+  const test     = document.getElementById('x_test');
+  const okEl     = document.getElementById('x_ok');
+  const nokEl    = document.getElementById('x_nok');
+
+  [iremo, rmc, drawing, pav, busena, kontrole, darboTip, test, okEl, nokEl].forEach(clearInvalid);
+
+  const okN = parseInt(okEl.value, 10), nokN = parseInt(nokEl.value, 10);
+  const okVal = Number.isFinite(okN) ? okN : 0, nokVal = Number.isFinite(nokN) ? nokN : 0;
+  const crit = getCheckedCriteria();
+
+  let valid = true;
+  if(!iremo.value.trim()){ markInvalid(iremo); valid = false; }
+  if(!rmc.value.trim()){ markInvalid(rmc); valid = false; }
+  if(!darboTip.value){ markInvalid(darboTip); valid = false; }
+  if(!tipas){ showToast('Pasirinkite tipą (Subranga / RMC)', 'error'); valid = false; }
+  if(tipas === 'Subranga' && !pav.value.trim()){ markInvalid(pav); valid = false; }
+  if(tipas === 'RMC' && !busena.value){ markInvalid(busena); valid = false; }
+  if(tipas === 'RMC' && !kontrole.value){ markInvalid(kontrole); valid = false; }
+  if(!drawing.value.trim()){ markInvalid(drawing); valid = false; }
+  if(!test.value){ markInvalid(test); valid = false; }
+  if(test.value && crit.length === 0){ showToast('Pažymėkite priėmimo kriterijų', 'error'); valid = false; }
+  if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
+  if(xphotos.length === 0){ document.getElementById('xphotozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
+  if(!valid){ return; }
+
+  const btn = document.getElementById('xsubmitBtn');
+  btn.disabled = true;
+  const rmcNumber = 'RMC-' + rmc.value.trim();
+  const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
+  const def = TEST_DEFS[test.value] || {};
+
+  if(DEV_SKIP_LOGIN){
+    console.log('[DEV] tests submit:', { rmcNumber, test: test.value, standard: def.standard, criteria: crit.join(','), ok: okVal, nok: nokVal, photos: xphotos.length });
+    showToast(`✓ [DEV] Patikrinta · ${test.value} · ${xphotos.length} nuotr.`, 'success');
+    setTimeout(clearTestForm, 1100);
+    btn.disabled = false; return;
+  }
+
+  try{
+    btn.innerHTML = '<span class="spinner"></span>Kuriamas įrašas…';
+    const token = await getSpToken();
+    const newId = await createListItem(token, {
+      Title:       rmcNumber,
+      IremoNr:     'I-' + iremo.value.trim(),
+      Tipas:       tipas,
+      Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
+      Busena:      tipas === 'RMC' ? busena.value : '',
+      Kontrole:    tipas === 'RMC' ? kontrole.value : '',
+      BreziniNr:   drawing.value.trim(),
+      Testas:      test.value,
+      Standartas:  def.standard || '',
+      Kriterijus:  crit.join(', '),
+      OK:          okVal,
+      NOK:         nokVal,
+      DarboTipas:  darboTip.value,
+      Komentaras:  document.getElementById('x_komentaras').value.trim(),
+      SubmittedBy: currentUser?.name || ''
+    });
+
+    const folderRelPath = `${SP_FOLDER_BASE}/${safeName}_${newId}`;
+    btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
+    await ensureSpFolder(token, SP_FOLDER_BASE);
+    if(!await ensureSpFolder(token, folderRelPath)) throw new Error('nepavyko sukurti aplanko');
+
+    btn.innerHTML = '<span class="spinner"></span>Keliamos nuotraukos…';
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const uploadedNames = []; let idx = 0, errors = 0;
+    for(const p of xphotos){
+      idx++;
+      const { blob, ext } = await processPhoto(p.file);
+      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
+      const ok = await uploadFileToSp(token, folderRelPath, filename, await blob.arrayBuffer());
+      if(ok) uploadedNames.push(filename); else errors++;
+    }
+    if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
+
+    btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
+    await updateListItem(token, newId, { FolderPath: folderRelPath, PhotoCount: uploadedNames.length, PhotoNames: uploadedNames.join(', ') });
+
+    showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
+    setTimeout(clearTestForm, 1300);
+  } catch(e){
+    showToast('Klaida: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Pateikti / Submit';
+  }
+}
+
+function clearTestForm(){
+  ['x_iremo','x_rmc','x_drawing','x_pavadinimas','x_busena','x_kontrole','x_darboTipas','x_test','x_ok','x_nok','x_komentaras'].forEach(id=>{
+    const el = document.getElementById(id); el.value = ''; clearInvalid(el);
+  });
+  document.querySelectorAll('[name=xtipas]').forEach(r => r.checked = false);
+  xphotos.forEach(p => URL.revokeObjectURL(p.url));
+  xphotos = [];
+  renderXPhotos();
+  document.getElementById('xphotozone').style.borderColor = '';
+  onXTypeChange();
+  onTestChange();
 }
 
 // Theme

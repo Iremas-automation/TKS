@@ -427,6 +427,19 @@
         <label class="fopt"><input type="checkbox" data-g="op" value="Dažymas" onchange="applyFilters()"> Dažymas</label>
       </div>
       <div class="fgroup">
+        <div class="fgroup-title">Kontrolė</div>
+        <label class="fopt"><input type="checkbox" data-g="kontrole" value="Galutinis" onchange="applyFilters()"> Galutinis</label>
+        <label class="fopt"><input type="checkbox" data-g="kontrole" value="Tarpinis" onchange="applyFilters()"> Tarpinis</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Bandymas</div>
+        <label class="fopt"><input type="checkbox" data-g="test" value="VT" onchange="applyFilters()"> VT</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="PT" onchange="applyFilters()"> PT</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="MT" onchange="applyFilters()"> MT</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="RT" onchange="applyFilters()"> RT</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="UT" onchange="applyFilters()"> UT</label>
+      </div>
+      <div class="fgroup">
         <div class="fgroup-title">OK / NOK</div>
         <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Yra NOK</label>
         <label class="fopt"><input type="checkbox" data-g="oknok" value="ok" onchange="applyFilters()"> Tik OK (be NOK)</label>
@@ -1126,6 +1139,8 @@ function applyFilters(){
   const q     = document.getElementById('list_search').value.trim().toLowerCase();
   const tipas = getChecked('tipas');
   const ops   = getChecked('op');
+  const konts = getChecked('kontrole');
+  const tests = getChecked('test');
   const oknok = getChecked('oknok');
   const dates = getChecked('date');
   const users = getChecked('user');
@@ -1135,6 +1150,8 @@ function applyFilters(){
   const list = _allRecords.filter(r => {
     if(tipas.length && !tipas.includes(r.tipas))  return false;
     if(ops.length   && !ops.includes(r.busena)) return false;
+    if(konts.length && !konts.includes(r.kontrole)) return false;
+    if(tests.length && !tests.includes(r.testas)) return false;
     if(users.length && !users.includes(r.by))   return false;
     if(oknok.length && !oknok.some(v =>
         (v === 'nok' && Number(r.nok) > 0) ||
@@ -1159,7 +1176,7 @@ function applyFilters(){
   });
   renderList(list);
   updateUserBtn();
-  const n = tipas.length + ops.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
+  const n = tipas.length + ops.length + konts.length + tests.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
   document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
 }
 

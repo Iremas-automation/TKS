@@ -67,7 +67,7 @@
   .btn-refresh:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
   .list-msg{text-align:center;color:var(--muted);font-size:13px;padding:34px 0;}
   .list-msg.err{color:var(--red);}
-  .rec{display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 14px 14px 16px;margin-bottom:10px;}
+  .rec{position:relative;display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 14px 14px 16px;margin-bottom:10px;}
   .rec-main{flex:1;min-width:0;}
   .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
@@ -84,8 +84,8 @@
   .rec-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .rec-btn{font-family:var(--font);font-size:12px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--orange-dim);border-radius:var(--radius);padding:6px 12px;cursor:pointer;}
   .rec-btn:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
-  .rec-btn-edit{color:var(--muted);border-color:var(--border);}
-  .rec-btn-edit:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .rec-edit{position:absolute;bottom:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.75;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .rec-edit:hover{opacity:1;border-color:var(--orange-dim);}
   .edit-modal{position:fixed;inset:0;z-index:350;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
   .edit-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow);}
   .edit-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700;color:var(--ink);}
@@ -1139,12 +1139,12 @@ function renderList(records){
           ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
           : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
         <div class="rec-actions">
-          <button class="rec-btn rec-btn-edit" onclick="openEdit(${vi})">✏️ Redaguoti</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
         </div>
       </div>
       <div class="rec-badges">${badges}</div>
+      <button class="rec-edit" onclick="openEdit(${vi})" title="Redaguoti">✏️</button>
     </div>`;
   }).join('');
   lazyLoadThumbs();

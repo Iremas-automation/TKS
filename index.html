@@ -501,6 +501,7 @@
         <div class="field"><label>Standartas</label><input type="text" id="e_standartas" autocomplete="off"></div>
         <div class="field"><label>Kriterijus</label><input type="text" id="e_kriterijus" autocomplete="off"></div>
       </div>
+      <div class="field"><label>Suvirintojo ID</label><input type="text" id="e_welder" autocomplete="off"></div>
       <div class="grid2">
         <div class="field"><label>OK</label><input type="number" id="e_ok" min="0" inputmode="numeric"></div>
         <div class="field"><label>NOK</label><input type="number" id="e_nok" min="0" inputmode="numeric"></div>
@@ -612,6 +613,11 @@
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
           <input type="number" id="x_nok" min="0" step="1" inputmode="numeric" placeholder="">
         </div>
+      </div>
+
+      <div class="field">
+        <label>Suvirintojo ID <span class="req">*</span><br><span class="lt">Welder ID</span></label>
+        <input type="text" id="x_welder" autocomplete="off">
       </div>
 
       <div class="field">
@@ -1080,6 +1086,7 @@ async function loadList(){
         testas:     it[col('Testas')] || '',
         standartas: it[col('Standartas')] || '',
         kriterijus: it[col('Kriterijus')] || '',
+        welder:     it[col('SuvirintojoID')] || '',
         komentaras: it[col('Komentaras')] || '',
         photoCount: it[col('PhotoCount')] ?? '',
         photoNames: it[col('PhotoNames')] || '',
@@ -1119,6 +1126,7 @@ function renderList(records){
     if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
     if(r.kontrole)       parts.push(esc(r.kontrole));
     if(r.testas)         parts.push('Bandymas: <b>' + esc(r.testas) + '</b>' + (r.standartas ? ' · ' + esc(r.standartas) : '') + (r.kriterijus ? ' · ' + esc(r.kriterijus) : ''));
+    if(r.welder)         parts.push('Suvirintojo ID: <b>' + esc(r.welder) + '</b>');
     if(r.brezinys)       parts.push('Brėžinys: <b>' + esc(r.brezinys) + '</b>');
     if(r.darboTipas)     parts.push(esc(r.darboTipas));
     const foot = [date, r.by].filter(Boolean).map(esc).join(' · ');
@@ -1209,7 +1217,7 @@ function applyFilters(){
       if(from && d < new Date(from + 'T00:00:00')) return false;
       if(to   && d > new Date(to   + 'T23:59:59')) return false;
     }
-    if(q && ![r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.komentaras, r.by]
+    if(q && ![r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.komentaras, r.by]
         .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
     return true;
   });
@@ -1515,10 +1523,11 @@ async function submitTestForm(){
   const kontrole = document.getElementById('x_kontrole');
   const darboTip = document.getElementById('x_darboTipas');
   const test     = document.getElementById('x_test');
+  const welder   = document.getElementById('x_welder');
   const okEl     = document.getElementById('x_ok');
   const nokEl    = document.getElementById('x_nok');
 
-  [iremo, rmc, drawing, pav, busena, kontrole, darboTip, test, okEl, nokEl].forEach(clearInvalid);
+  [iremo, rmc, drawing, pav, busena, kontrole, darboTip, test, welder, okEl, nokEl].forEach(clearInvalid);
 
   const okN = parseInt(okEl.value, 10), nokN = parseInt(nokEl.value, 10);
   const okVal = Number.isFinite(okN) ? okN : 0, nokVal = Number.isFinite(nokN) ? nokN : 0;
@@ -1535,6 +1544,7 @@ async function submitTestForm(){
   if(!drawing.value.trim()){ markInvalid(drawing); valid = false; }
   if(!test.value){ markInvalid(test); valid = false; }
   if(test.value && crit.length === 0){ showToast('Pažymėkite priėmimo kriterijų', 'error'); valid = false; }
+  if(!welder.value.trim()){ markInvalid(welder); valid = false; }
   if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
   if(xphotos.length === 0){ document.getElementById('xphotozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
   if(!valid){ return; }
@@ -1585,6 +1595,7 @@ async function submitTestForm(){
       Testas:      test.value,
       Standartas:  def.standard || '',
       Kriterijus:  crit.join(', '),
+      SuvirintojoID: welder.value.trim(),
       OK:          okVal,
       NOK:         nokVal,
       DarboTipas:  darboTip.value,
@@ -1611,7 +1622,7 @@ async function submitTestForm(){
 }
 
 function clearTestForm(){
-  ['x_iremo','x_rmc','x_drawing','x_pavadinimas','x_busena','x_kontrole','x_darboTipas','x_test','x_ok','x_nok','x_komentaras'].forEach(id=>{
+  ['x_iremo','x_rmc','x_drawing','x_pavadinimas','x_busena','x_kontrole','x_darboTipas','x_test','x_welder','x_ok','x_nok','x_komentaras'].forEach(id=>{
     const el = document.getElementById(id); el.value = ''; clearInvalid(el);
   });
   document.querySelectorAll('[name=xtipas]').forEach(r => r.checked = false);
@@ -1685,6 +1696,7 @@ function openEdit(vi){
   document.getElementById('e_test').value        = r.testas || '';
   document.getElementById('e_standartas').value  = r.standartas || '';
   document.getElementById('e_kriterijus').value  = r.kriterijus || '';
+  document.getElementById('e_welder').value      = r.welder || '';
   document.getElementById('e_ok').value          = (r.ok === '' || r.ok == null) ? '' : r.ok;
   document.getElementById('e_nok').value         = (r.nok === '' || r.nok == null) ? '' : r.nok;
   document.getElementById('e_komentaras').value  = r.komentaras || '';
@@ -1711,6 +1723,7 @@ async function saveEdit(){
       Testas:      document.getElementById('e_test').value,
       Standartas:  document.getElementById('e_standartas').value.trim(),
       Kriterijus:  document.getElementById('e_kriterijus').value.trim(),
+      SuvirintojoID: document.getElementById('e_welder').value.trim(),
       OK:          Number.isFinite(okN) ? okN : 0,
       NOK:         Number.isFinite(nokN) ? nokN : 0,
       Komentaras:  document.getElementById('e_komentaras').value.trim()

@@ -884,6 +884,23 @@ async function updateListItem(token, id, fields){
   return true;
 }
 
+// Rename a SharePoint folder (used when the RMC number changes during edit).
+// Best-effort: won't clobber an existing folder, returns {ok, reason}.
+async function renameSpFolder(token, oldPath, newPath){
+  try{
+    const chk = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${newPath}')`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(chk.ok) return { ok:false, reason:'toks aplankas jau egzistuoja' };
+    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(oldPath)}')/moveto(newurl='${encodeURIComponent(newPath)}',flags=0)`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok){ let m = r.status; try{ m = JSON.parse(await r.text())?.error?.message?.value || r.status; }catch{} return { ok:false, reason:m }; }
+    return { ok:true };
+  }catch(e){ return { ok:false, reason:e.message }; }
+}
+
 // ─────────── LIST TAB ───────────
 let _allRecords = [];
 let _viewRecords = [];
@@ -1681,10 +1698,10 @@ function addAnother(){
 function dismissResubmit(){ document.getElementById('resubmit').style.display = 'none'; }
 
 // ─────────── EDIT RECORD ───────────
-let _editId = null;
+let _editId = null, _editRec = null;
 function openEdit(vi){
   const r = _viewRecords[vi]; if(!r) return;
-  _editId = r.protocol;
+  _editId = r.protocol; _editRec = r;
   document.getElementById('e_iremo').value      = (r.iremo || '').replace(/^I-/, '');
   document.getElementById('e_rmc').value         = (r.rmc || '').replace(/^RMC-/, '');
   document.getElementById('e_darboTipas').value  = r.darboTipas || '';
@@ -1711,9 +1728,21 @@ async function saveEdit(){
     const token = await getSpToken();
     const okN = parseInt(document.getElementById('e_ok').value, 10);
     const nokN = parseInt(document.getElementById('e_nok').value, 10);
-    await updateListItem(token, _editId, {
+    const newTitle = 'RMC-' + document.getElementById('e_rmc').value.trim();
+
+    // If the RMC number changed, try to rename the folder too
+    let folderPath = _editRec ? _editRec.folder : '';
+    if(_editRec && folderPath && newTitle !== _editRec.rmc){
+      const newSafe = newTitle.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
+      const newFolder = `${SP_FOLDER_BASE}/${newSafe}`;
+      const res = await renameSpFolder(token, folderPath, newFolder);
+      if(res.ok){ folderPath = newFolder; }
+      else { showToast('⚠ Aplanko pervadinti nepavyko: ' + res.reason, 'error'); }
+    }
+
+    const fields = {
       IremoNr:     'I-' + document.getElementById('e_iremo').value.trim(),
-      Title:       'RMC-' + document.getElementById('e_rmc').value.trim(),
+      Title:       newTitle,
       DarboTipas:  document.getElementById('e_darboTipas').value,
       Tipas:       document.getElementById('e_tipas').value,
       Pavadinimas: document.getElementById('e_pavadinimas').value.trim(),
@@ -1727,7 +1756,9 @@ async function saveEdit(){
       OK:          Number.isFinite(okN) ? okN : 0,
       NOK:         Number.isFinite(nokN) ? nokN : 0,
       Komentaras:  document.getElementById('e_komentaras').value.trim()
-    });
+    };
+    if(folderPath) fields.FolderPath = folderPath;
+    await updateListItem(token, _editId, fields);
     closeEdit();
     showToast('✓ Įrašas atnaujintas', 'success');
     loadList();

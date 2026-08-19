@@ -885,20 +885,32 @@ async function updateListItem(token, id, fields){
 }
 
 // Rename a SharePoint folder (used when the RMC number changes during edit).
-// Best-effort: won't clobber an existing folder, returns {ok, reason}.
+// Uses the JSON-body MoveFolderByPath utility to avoid URL-encoding pitfalls.
 async function renameSpFolder(token, oldPath, newPath){
   try{
     const chk = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${newPath}')`, {
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
     });
     if(chk.ok) return { ok:false, reason:'toks aplankas jau egzistuoja' };
-    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(oldPath)}')/moveto(newurl='${encodeURIComponent(newPath)}',flags=0)`, {
+    const origin = new URL(SP_SITE_URL).origin;
+    const body = {
+      srcPath:  { '__metadata': { type:'SP.ResourcePath' }, DecodedUrl: origin + oldPath },
+      destPath: { '__metadata': { type:'SP.ResourcePath' }, DecodedUrl: origin + newPath },
+      options:  { '__metadata': { type:'SP.MoveCopyOptions' }, KeepBoth:false, ResetAuthorAndCreatedOnCopy:false, ShouldBypassSharedLocks:true }
+    };
+    const r = await fetch(`${SP_SITE_URL}/_api/SP.MoveCopyUtil.MoveFolderByPath`, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose' },
+      body: JSON.stringify(body)
     });
-    if(!r.ok){ let m = r.status; try{ m = JSON.parse(await r.text())?.error?.message?.value || r.status; }catch{} return { ok:false, reason:m }; }
+    if(!r.ok){
+      const raw = await r.text();
+      console.error('[renameSpFolder] HTTP', r.status, raw);
+      let m = r.status; try{ m = JSON.parse(raw)?.error?.message?.value || r.status; }catch{}
+      return { ok:false, reason:m };
+    }
     return { ok:true };
-  }catch(e){ return { ok:false, reason:e.message }; }
+  }catch(e){ console.error('[renameSpFolder] error', e); return { ok:false, reason:e.message }; }
 }
 
 // ─────────── LIST TAB ───────────
@@ -1326,12 +1338,12 @@ function onTypeChange(){
   if(tipas !== 'RMC'){ document.getElementById('f_busena').value = ''; document.getElementById('f_kontrole').value = ''; }
 }
 
-function showToast(msg, type='success'){
+function showToast(msg, type='success', ms=3200){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
   clearTimeout(window._toastT);
-  window._toastT = setTimeout(()=>t.classList.remove('show'), 3200);
+  window._toastT = setTimeout(()=>t.classList.remove('show'), ms);
 }
 
 function markInvalid(el){ el.style.borderColor = 'var(--red)'; el.style.boxShadow = '0 0 0 3px rgba(192,57,43,.14)'; }
@@ -1732,12 +1744,13 @@ async function saveEdit(){
 
     // If the RMC number changed, try to rename the folder too
     let folderPath = _editRec ? _editRec.folder : '';
+    let renameNote = '';
     if(_editRec && folderPath && newTitle !== _editRec.rmc){
       const newSafe = newTitle.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
       const newFolder = `${SP_FOLDER_BASE}/${newSafe}`;
       const res = await renameSpFolder(token, folderPath, newFolder);
       if(res.ok){ folderPath = newFolder; }
-      else { showToast('⚠ Aplanko pervadinti nepavyko: ' + res.reason, 'error'); }
+      else { renameNote = res.reason; }
     }
 
     const fields = {
@@ -1760,7 +1773,8 @@ async function saveEdit(){
     if(folderPath) fields.FolderPath = folderPath;
     await updateListItem(token, _editId, fields);
     closeEdit();
-    showToast('✓ Įrašas atnaujintas', 'success');
+    if(renameNote) showToast('Įrašas atnaujintas, bet aplanko pervadinti nepavyko: ' + renameNote + ' (žr. konsolę F12)', 'error', 10000);
+    else showToast('✓ Įrašas atnaujintas', 'success');
     loadList();
   }catch(e){
     showToast('Klaida: ' + e.message, 'error');

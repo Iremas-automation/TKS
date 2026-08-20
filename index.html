@@ -72,7 +72,11 @@
   .rec-order{font-family:var(--font);font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:2px;}
   .rec-rmc{font-family:var(--font);font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
-  .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
+  .rec-badges{display:flex;flex-direction:column;gap:8px;width:118px;flex-shrink:0;}
+  .rec-nok-row{display:flex;gap:8px;flex:1;}
+  .rec-nok-row .badge{flex:1;}
+  .rec-addphoto{flex-shrink:0;width:42px;border:1px solid var(--orange-dim);border-radius:10px;background:var(--surface);color:var(--orange-dim);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .rec-addphoto:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
   .badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;border-radius:10px;padding:6px;}
   .badge .n{font-size:24px;font-weight:800;line-height:1;}
   .badge .l{font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.7;margin-top:3px;}
@@ -306,7 +310,7 @@
       <!-- 0. Iremo užsakymo Nr -->
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" inputmode="numeric" oninput="numOnly(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <!-- 1. RMC numeris -->
@@ -379,11 +383,11 @@
       <div class="grid2">
         <div class="field">
           <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
-          <input type="number" id="f_ok" min="0" step="1" inputmode="numeric" placeholder="">
+          <input type="text" id="f_ok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
         </div>
         <div class="field">
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
-          <input type="number" id="f_nok" min="0" step="1" inputmode="numeric" placeholder="">
+          <input type="text" id="f_nok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
         </div>
       </div>
 
@@ -484,12 +488,13 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<input type="file" id="rec_photo_input" accept="image/*" multiple style="display:none" onchange="uploadExtraPhotos()">
 
 <div class="edit-modal" id="editModal" style="display:none" onclick="if(event.target.id==='editModal')closeEdit()">
   <div class="edit-card">
     <div class="edit-head"><span>Redaguoti įrašą</span><button class="edit-x" onclick="closeEdit()">✕</button></div>
     <div class="edit-body">
-      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" autocomplete="off"></div></div>
+      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" inputmode="numeric" oninput="numOnly(this)" autocomplete="off"></div></div>
       <div class="field"><label>RMC numeris</label><div class="affix"><span class="pfx">RMC-</span><input type="text" id="e_rmc" autocomplete="off"></div></div>
       <div class="field"><label>Naujas / Remontas</label><select id="e_darboTipas"><option value="">—</option><option>Naujas</option><option>Remontas</option></select></div>
       <div class="field"><label>Tipas</label><select id="e_tipas"><option value="">—</option><option>Subranga</option><option>RMC</option></select></div>
@@ -504,8 +509,8 @@
       </div>
       <div class="field"><label>Suvirintojo ID</label><input type="text" id="e_welder" autocomplete="off"></div>
       <div class="grid2">
-        <div class="field"><label>OK</label><input type="number" id="e_ok" min="0" inputmode="numeric"></div>
-        <div class="field"><label>NOK</label><input type="number" id="e_nok" min="0" inputmode="numeric"></div>
+        <div class="field"><label>OK</label><input type="text" id="e_ok" inputmode="numeric" oninput="numOnly(this)"></div>
+        <div class="field"><label>NOK</label><input type="text" id="e_nok" inputmode="numeric" oninput="numOnly(this)"></div>
       </div>
       <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3"></textarea></div>
     </div>
@@ -523,7 +528,7 @@
 
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" inputmode="numeric" oninput="numOnly(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <div class="field">
@@ -608,11 +613,11 @@
       <div class="grid2">
         <div class="field">
           <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
-          <input type="number" id="x_ok" min="0" step="1" inputmode="numeric" placeholder="">
+          <input type="text" id="x_ok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
         </div>
         <div class="field">
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
-          <input type="number" id="x_nok" min="0" step="1" inputmode="numeric" placeholder="">
+          <input type="text" id="x_nok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
         </div>
       </div>
 
@@ -1160,6 +1165,7 @@ async function loadList(){
       const folder = it[col('FolderPath')] || '';
       return {
         protocol:   it[col('ProtokoloNr')] || (it.ID ?? it.Id ?? ''),
+        itemId:     it.ID ?? it.Id,
         rmc:        it['Title'] || '',
         iremo:      it[col('IremoNr')] || '',
         tipas:      it[col('Tipas')] || '',
@@ -1205,7 +1211,10 @@ function renderList(records){
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
     const badges = `
       <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
-      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;
+      <div class="rec-nok-row">
+        <button class="rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
+        <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>
+      </div>`;
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
@@ -1327,6 +1336,42 @@ function toggleFilters(){
 }
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Add more photos to an existing record's folder
+let _addPhotoTarget = -1;
+function addPhotosToRecord(vi){
+  const r = _viewRecords[vi];
+  if(!r || !r.folder){ showToast('Šis įrašas neturi aplanko', 'error'); return; }
+  _addPhotoTarget = vi;
+  document.getElementById('rec_photo_input').click();
+}
+async function uploadExtraPhotos(){
+  const input = document.getElementById('rec_photo_input');
+  const files = Array.from(input.files || []);
+  input.value = '';
+  const r = _viewRecords[_addPhotoTarget];
+  if(!r || !files.length) return;
+  showToast('Keliamos nuotraukos…', 'info', 8000);
+  try{
+    const token = await getSpToken();
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const prefix = safeSeg(r.rmc) || 'foto';
+    const existing = (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean);
+    const added = []; let i = 0, errors = 0;
+    for(const f of files){
+      i++;
+      const { blob, ext } = await processPhoto(f);
+      const name = `${prefix}_${stamp}_p${String(i).padStart(2,'0')}.${ext}`;
+      const ok = await uploadFileToSp(token, r.folder, name, await blob.arrayBuffer());
+      if(ok) added.push(name); else errors++;
+    }
+    if(!added.length) throw new Error('nepavyko įkelti');
+    const allNames = existing.concat(added);
+    await updateListItem(token, r.itemId, { PhotoNames: allNames.join(', '), PhotoCount: allNames.length });
+    showToast(`✓ Pridėta ${added.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
+    loadList();
+  }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
+}
 function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
 

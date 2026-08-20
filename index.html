@@ -69,7 +69,8 @@
   .list-msg.err{color:var(--red);}
   .rec{position:relative;display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:var(--radius);padding:14px 14px 14px 16px;margin-bottom:10px;}
   .rec-main{flex:1;min-width:0;}
-  .rec-rmc{font-size:15px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
+  .rec-order{font-size:17px;font-weight:800;color:var(--ink);word-break:break-all;margin-bottom:2px;}
+  .rec-rmc{font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
   .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
   .badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;border-radius:10px;padding:6px;}
@@ -1208,7 +1209,6 @@ function renderList(records){
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
-    if(r.iremo)          parts.push('Užs.: <b>' + esc(r.iremo) + '</b>');
     if(r.tipas)          parts.push(esc(r.tipas) + (detail ? ' · ' + esc(detail) : ''));
     if(r.kontrole)       parts.push(esc(r.kontrole));
     if(r.testas)         parts.push('Bandymas: <b>' + esc(r.testas) + '</b>' + (r.standartas ? ' · ' + esc(r.standartas) : '') + (r.kriterijus ? ' · ' + esc(r.kriterijus) : ''));
@@ -1225,6 +1225,7 @@ function renderList(records){
     }</div>` : '';
     return `<div class="rec">
       <div class="rec-main">
+        ${r.iremo ? `<div class="rec-order">${esc(r.iremo)}</div>` : ''}
         <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}${r.protocol !== '' ? `<span class="rec-proto">Protokolas: ${esc(String(r.protocol))}</span>` : ''}</div>
         <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
         ${thumbs}

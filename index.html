@@ -930,13 +930,18 @@ function recPhotos(r){
 async function fetchImage(path){
   if(_imgCache[path]) return _imgCache[path];
   const token = await getSpToken();
-  const r = await fetch(`${SP_SITE_URL}/_api/web/GetFileByServerRelativePath(decodedurl='${path}')/$value`, {
-    headers: { Authorization: 'Bearer ' + token }
-  });
-  if(!r.ok) throw new Error('img ' + r.status);
-  const url = URL.createObjectURL(await r.blob());
-  _imgCache[path] = url;
-  return url;
+  const url = `${SP_SITE_URL}/_api/web/GetFileByServerRelativePath(decodedurl='${path}')/$value`;
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if(!r.ok){
+    let raw = ''; try{ raw = await r.text(); }catch{}
+    console.error('[fetchImage] HTTP ' + r.status + ' | path: ' + path + ' | ' + raw);
+    throw new Error('img ' + r.status);
+  }
+  const blob = await r.blob();
+  if(!blob.type.startsWith('image/')) console.warn('[fetchImage] ne-paveikslėlis (' + blob.type + ') | path: ' + path);
+  const objUrl = URL.createObjectURL(blob);
+  _imgCache[path] = objUrl;
+  return objUrl;
 }
 
 // Load thumbnails only as cards scroll into view
@@ -950,7 +955,7 @@ function lazyLoadThumbs(){
           const url = await fetchImage(el.getAttribute('data-path'));
           const img = document.createElement('img'); img.src = url; img.alt = '';
           el.appendChild(img);
-        }catch(e){ el.classList.add('err'); }
+        }catch(e){ el.classList.add('err'); console.error('[thumb] ' + el.getAttribute('data-path') + ' | ' + e.message); }
       });
     }, { rootMargin: '250px' });
   }
@@ -1269,6 +1274,7 @@ function toggleFilters(){
 }
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 
 // ─────────── PHOTOS ───────────
 let photos = [];
@@ -1407,16 +1413,21 @@ async function submitForm(){
   btn.disabled = true;
 
   const rmcNumber = 'RMC-' + rmc.value.trim();
-  const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
-  const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
+  const iremoNr   = 'I-' + iremo.value.trim();
+  const orderSeg  = safeSeg(iremoNr);
+  const rmcSeg    = safeSeg(rmcNumber);
+  const brezSeg   = safeSeg(drawing.value.trim());
+  const folderRelPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
 
   try{
     btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
 
-    // 1) Create the folder
+    // 1) Create the folder tree: Užsakymo nr → RMC nr → Brėžinio nr
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
+    await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
+    await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
     const folderOk = await ensureSpFolder(token, folderRelPath);
     if(!folderOk) throw new Error('nepavyko sukurti SharePoint aplanko');
 
@@ -1428,7 +1439,7 @@ async function submitForm(){
     for(const p of photos){
       idx++;
       const { blob, ext } = await processPhoto(p.file);
-      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
+      const filename = `${rmcSeg}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
       const ok = await uploadFileToSp(token, folderRelPath, filename, await blob.arrayBuffer());
       if(ok) uploadedNames.push(filename); else errors++;
     }
@@ -1581,7 +1592,10 @@ async function submitTestForm(){
   const btn = document.getElementById('xsubmitBtn');
   btn.disabled = true;
   const rmcNumber = 'RMC-' + rmc.value.trim();
-  const safeName  = rmcNumber.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
+  const iremoNr   = 'I-' + iremo.value.trim();
+  const orderSeg  = safeSeg(iremoNr);
+  const rmcSeg    = safeSeg(rmcNumber);
+  const brezSeg   = safeSeg(drawing.value.trim());
   const def = TEST_DEFS[test.value] || {};
 
   if(DEV_SKIP_LOGIN){
@@ -1595,9 +1609,11 @@ async function submitTestForm(){
     btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
 
-    const folderRelPath = `${SP_FOLDER_BASE}/${safeName}`;
+    const folderRelPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
+    await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
+    await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
     if(!await ensureSpFolder(token, folderRelPath)) throw new Error('nepavyko sukurti aplanko');
 
     btn.innerHTML = '<span class="spinner"></span>Keliamos nuotraukos…';
@@ -1606,7 +1622,7 @@ async function submitTestForm(){
     for(const p of xphotos){
       idx++;
       const { blob, ext } = await processPhoto(p.file);
-      const filename = `${safeName}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
+      const filename = `${rmcSeg}_${stamp}_${String(idx).padStart(2,'0')}.${ext}`;
       const ok = await uploadFileToSp(token, folderRelPath, filename, await blob.arrayBuffer());
       if(ok) uploadedNames.push(filename); else errors++;
     }
@@ -1742,15 +1758,22 @@ async function saveEdit(){
     const nokN = parseInt(document.getElementById('e_nok').value, 10);
     const newTitle = 'RMC-' + document.getElementById('e_rmc').value.trim();
 
-    // If the RMC number changed, try to rename the folder too
+    // If the folder path changed (order / RMC / drawing), move the folder to match
     let folderPath = _editRec ? _editRec.folder : '';
     let renameNote = '';
-    if(_editRec && folderPath && newTitle !== _editRec.rmc){
-      const newSafe = newTitle.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim();
-      const newFolder = `${SP_FOLDER_BASE}/${newSafe}`;
-      const res = await renameSpFolder(token, folderPath, newFolder);
-      if(res.ok){ folderPath = newFolder; }
-      else { renameNote = res.reason; }
+    if(_editRec && folderPath){
+      const orderSeg = safeSeg('I-' + document.getElementById('e_iremo').value.trim());
+      const rmcSeg   = safeSeg(newTitle);
+      const brezSeg  = safeSeg(document.getElementById('e_brezinys').value.trim());
+      const newFolder = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+      if(newFolder !== folderPath){
+        await ensureSpFolder(token, SP_FOLDER_BASE);
+        await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
+        await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
+        const res = await renameSpFolder(token, folderPath, newFolder);
+        if(res.ok){ folderPath = newFolder; }
+        else { renameNote = res.reason; }
+      }
     }
 
     const fields = {

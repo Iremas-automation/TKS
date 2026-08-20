@@ -913,6 +913,26 @@ async function renameSpFolder(token, oldPath, newPath){
   }catch(e){ console.error('[renameSpFolder] error', e); return { ok:false, reason:e.message }; }
 }
 
+// Delete a folder only if it has no subfolders and no files (cleans up orphaned parents)
+async function deleteFolderIfEmpty(token, path){
+  try{
+    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${path}')?$expand=Folders,Files&$select=Folders/Name,Files/Name`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) return false;
+    const d = (await r.json()).d;
+    const nFolders = (d.Folders && d.Folders.results ? d.Folders.results.length : 0);
+    const nFiles   = (d.Files   && d.Files.results   ? d.Files.results.length   : 0);
+    if(nFolders > 0 || nFiles > 0) return false;   // not empty — keep it
+    const del = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${path}')`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
+    });
+    if(!del.ok) console.warn('[deleteFolderIfEmpty] delete HTTP', del.status, path);
+    return del.ok;
+  }catch(e){ console.warn('[deleteFolderIfEmpty]', path, e); return false; }
+}
+
 // ─────────── LIST TAB ───────────
 let _allRecords = [];
 let _viewRecords = [];
@@ -937,8 +957,13 @@ async function fetchImage(path){
     console.error('[fetchImage] HTTP ' + r.status + ' | path: ' + path + ' | ' + raw);
     throw new Error('img ' + r.status);
   }
-  const blob = await r.blob();
-  if(!blob.type.startsWith('image/')) console.warn('[fetchImage] ne-paveikslėlis (' + blob.type + ') | path: ' + path);
+  let blob = await r.blob();
+  if(!blob.type.startsWith('image/')){
+    // SharePoint often serves files as application/octet-stream — re-tag so <img> renders
+    const ext = (path.split('.').pop() || 'jpg').toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : ext === 'bmp' ? 'image/bmp' : 'image/jpeg';
+    blob = new Blob([blob], { type: mime });
+  }
   const objUrl = URL.createObjectURL(blob);
   _imgCache[path] = objUrl;
   return objUrl;
@@ -979,7 +1004,15 @@ async function showLbImage(){
   document.getElementById('lb_open').href = new URL(SP_SITE_URL).origin + encodeURI(path);
   try{
     const url = await fetchImage(path);
-    if(_lbList[_lbIdx] === path){ wrap.innerHTML = `<img src="${url}" alt="">`; resetZoom(); }
+    if(_lbList[_lbIdx] === path){
+      wrap.innerHTML = '';
+      const im = document.createElement('img');
+      im.alt = '';
+      im.onerror = () => { wrap.innerHTML = '<div class="lb-load">Nepavyko atvaizduoti nuotraukos</div>'; };
+      im.src = url;
+      wrap.appendChild(im);
+      resetZoom();
+    }
   }catch(e){ wrap.innerHTML = '<div class="lb-load">Nepavyko įkelti nuotraukos</div>'; }
 }
 function lbNav(d){ _lbIdx = (_lbIdx + d + _lbList.length) % _lbList.length; showLbImage(); }
@@ -1771,7 +1804,15 @@ async function saveEdit(){
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
         const res = await renameSpFolder(token, folderPath, newFolder);
-        if(res.ok){ folderPath = newFolder; }
+        if(res.ok){
+          // remove now-empty old parent folders: old RMC nr, then old Užsakymo nr
+          const parts = folderPath.split('/');
+          parts.pop();                                       // drop old brėžinys leaf
+          await deleteFolderIfEmpty(token, parts.join('/')); // old RMC nr level
+          parts.pop();                                       // drop old RMC nr
+          await deleteFolderIfEmpty(token, parts.join('/')); // old Užsakymo nr level
+          folderPath = newFolder;
+        }
         else { renameNote = res.reason; }
       }
     }

@@ -799,6 +799,25 @@ async function uploadFileToSp(token, folderRelPath, filename, arrayBuffer){
   }catch(fe){ console.error('Upload error:', filename, fe); return false; }
 }
 
+// Next protocol number per order: <IremoNr>_1, _2, … (max existing suffix + 1)
+async function nextProtokoloNr(token, iremoNr){
+  try{
+    const map = await getFieldMap(token);
+    const iremoCol = map['iremonr'] || 'IremoNr';
+    const protoCol = map['protokolonr'] || 'ProtokoloNr';
+    const url = `${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$select=${protoCol}&$filter=${iremoCol} eq '${iremoNr.replace(/'/g, "''")}'&$top=5000`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' } });
+    let maxN = 0;
+    if(r.ok){
+      for(const it of (await r.json()).d.results){
+        const m = /_(\d+)$/.exec(it[protoCol] || '');
+        if(m){ const n = parseInt(m[1], 10); if(n > maxN) maxN = n; }
+      }
+    }
+    return `${iremoNr}_${maxN + 1}`;
+  }catch(e){ console.warn('[nextProtokoloNr]', e); return `${iremoNr}_1`; }
+}
+
 // Write the metadata row straight into the SharePoint list via REST (no Power Automate needed)
 let _spEntityType = null;
 let _spFieldMap = null;   // display title (lowercased) -> internal name
@@ -1139,7 +1158,7 @@ async function loadList(){
     _allRecords = items.map(it => {
       const folder = it[col('FolderPath')] || '';
       return {
-        protocol:   it.ID ?? it.Id ?? '',
+        protocol:   it[col('ProtokoloNr')] || (it.ID ?? it.Id ?? ''),
         rmc:        it['Title'] || '',
         iremo:      it[col('IremoNr')] || '',
         tipas:      it[col('Tipas')] || '',
@@ -1206,7 +1225,7 @@ function renderList(records){
     }</div>` : '';
     return `<div class="rec">
       <div class="rec-main">
-        <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}${r.protocol !== '' ? `<span class="rec-proto">Protokolas Nr. ${esc(String(r.protocol))}</span>` : ''}</div>
+        <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}${r.protocol !== '' ? `<span class="rec-proto">Protokolas: ${esc(String(r.protocol))}</span>` : ''}</div>
         <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
         ${thumbs}
         ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
@@ -1478,11 +1497,13 @@ async function submitForm(){
     }
     if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
 
-    // 3) Create the list item (SharePoint assigns the ID = protocol number)
+    // 3) Create the list item
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
+    const protokoloNr = await nextProtokoloNr(token, iremoNr);
     const newId = await createListItem(token, {
       Title:       rmcNumber,
-      IremoNr:     'I-' + iremo.value.trim(),
+      IremoNr:     iremoNr,
+      ProtokoloNr: protokoloNr,
       Tipas:       tipas,
       Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       Busena:      tipas === 'RMC' ? busena.value : '',
@@ -1498,13 +1519,13 @@ async function submitForm(){
       SubmittedBy: currentUser?.name || ''
     });
 
-    showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
+    showToast(`✓ Pateikta · Protokolas ${protokoloNr} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(() => afterSubmit('form', {
-      iremo: 'I-' + iremo.value.trim(), rmc: rmcNumber, brezinys: drawing.value.trim(),
+      iremo: iremoNr, rmc: rmcNumber, brezinys: drawing.value.trim(),
       darboTipas: darboTipas.value, tipas,
       pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       busena: tipas === 'RMC' ? busena.value : '', kontrole: tipas === 'RMC' ? kontrole.value : ''
-    }, newId), 1300);
+    }, protokoloNr), 1300);
   } catch(e){
     showToast('Klaida: ' + e.message, 'error');
   } finally {
@@ -1662,9 +1683,11 @@ async function submitTestForm(){
     if(uploadedNames.length === 0) throw new Error('nuotraukų įkelti nepavyko');
 
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
+    const protokoloNr = await nextProtokoloNr(token, iremoNr);
     const newId = await createListItem(token, {
       Title:       rmcNumber,
-      IremoNr:     'I-' + iremo.value.trim(),
+      IremoNr:     iremoNr,
+      ProtokoloNr: protokoloNr,
       Tipas:       tipas,
       Pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       Busena:      tipas === 'RMC' ? busena.value : '',
@@ -1684,13 +1707,13 @@ async function submitTestForm(){
       SubmittedBy: currentUser?.name || ''
     });
 
-    showToast(`✓ Pateikta · Protokolas Nr. ${newId} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
+    showToast(`✓ Pateikta · Protokolas ${protokoloNr} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(() => afterSubmit('tests', {
-      iremo: 'I-' + iremo.value.trim(), rmc: rmcNumber, brezinys: drawing.value.trim(),
+      iremo: iremoNr, rmc: rmcNumber, brezinys: drawing.value.trim(),
       darboTipas: darboTip.value, tipas,
       pavadinimas: tipas === 'Subranga' ? pav.value.trim() : '',
       busena: tipas === 'RMC' ? busena.value : '', kontrole: tipas === 'RMC' ? kontrole.value : ''
-    }, newId), 1300);
+    }, protokoloNr), 1300);
   } catch(e){
     showToast('Klaida: ' + e.message, 'error');
   } finally {

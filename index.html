@@ -72,11 +72,13 @@
   .rec-order{font-family:var(--font);font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:2px;}
   .rec-rmc{font-family:var(--font);font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
-  .rec-badges{display:flex;flex-direction:column;gap:8px;width:118px;flex-shrink:0;}
-  .rec-nok-row{display:flex;gap:8px;flex:1;}
-  .rec-nok-row .badge{flex:1;}
-  .rec-addphoto{flex-shrink:0;width:42px;border:1px solid var(--orange-dim);border-radius:10px;background:var(--surface);color:var(--orange-dim);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .rec-addphoto:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
+  .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
+  .rec-addphoto{margin-left:auto;padding:6px 10px;}
+  .photo-src{position:fixed;inset:0;z-index:360;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
+  .photo-src-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;box-shadow:var(--shadow);}
+  .photo-src-card button{font-family:var(--font);font-size:15px;font-weight:600;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;}
+  .photo-src-card button:hover{border-color:var(--orange-dim);color:var(--orange-dim);}
+  .photo-src-card button.cancel{color:var(--muted);border:none;}
   .badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;border-radius:10px;padding:6px;}
   .badge .n{font-size:24px;font-weight:800;line-height:1;}
   .badge .l{font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.7;margin-top:3px;}
@@ -488,7 +490,16 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<input type="file" id="rec_photo_input" accept="image/*" multiple style="display:none" onchange="uploadExtraPhotos()">
+<input type="file" id="rec_photo_camera" accept="image/*" capture="environment" style="display:none" onchange="uploadExtraPhotos(this)">
+<input type="file" id="rec_photo_gallery" accept="image/*" multiple style="display:none" onchange="uploadExtraPhotos(this)">
+
+<div class="photo-src" id="photoSrc" style="display:none" onclick="if(event.target.id==='photoSrc')closePhotoSrc()">
+  <div class="photo-src-card">
+    <button onclick="pickPhotoSrc('camera')">📷 Fotografuoti</button>
+    <button onclick="pickPhotoSrc('gallery')">🖼 Įkelti nuotrauką</button>
+    <button class="cancel" onclick="closePhotoSrc()">Atšaukti</button>
+  </div>
+</div>
 
 <div class="edit-modal" id="editModal" style="display:none" onclick="if(event.target.id==='editModal')closeEdit()">
   <div class="edit-card">
@@ -1211,10 +1222,7 @@ function renderList(records){
     const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
     const badges = `
       <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
-      <div class="rec-nok-row">
-        <button class="rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
-        <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>
-      </div>`;
+      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
@@ -1245,6 +1253,7 @@ function renderList(records){
         <div class="rec-actions">
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
+          <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
         </div>
       </div>
       <div class="rec-badges">${badges}</div>
@@ -1343,10 +1352,14 @@ function addPhotosToRecord(vi){
   const r = _viewRecords[vi];
   if(!r || !r.folder){ showToast('Šis įrašas neturi aplanko', 'error'); return; }
   _addPhotoTarget = vi;
-  document.getElementById('rec_photo_input').click();
+  document.getElementById('photoSrc').style.display = 'flex';
 }
-async function uploadExtraPhotos(){
-  const input = document.getElementById('rec_photo_input');
+function closePhotoSrc(){ document.getElementById('photoSrc').style.display = 'none'; }
+function pickPhotoSrc(kind){
+  closePhotoSrc();
+  document.getElementById(kind === 'camera' ? 'rec_photo_camera' : 'rec_photo_gallery').click();
+}
+async function uploadExtraPhotos(input){
   const files = Array.from(input.files || []);
   input.value = '';
   const r = _viewRecords[_addPhotoTarget];

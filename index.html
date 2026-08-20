@@ -312,7 +312,7 @@
       <!-- 0. Iremo užsakymo Nr -->
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" inputmode="numeric" oninput="numOnly(this)" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" inputmode="numeric" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <!-- 1. RMC numeris -->
@@ -505,7 +505,7 @@
   <div class="edit-card">
     <div class="edit-head"><span>Redaguoti įrašą</span><button class="edit-x" onclick="closeEdit()">✕</button></div>
     <div class="edit-body">
-      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" inputmode="numeric" oninput="numOnly(this)" autocomplete="off"></div></div>
+      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" inputmode="numeric" oninput="numDash(this)" autocomplete="off"></div></div>
       <div class="field"><label>RMC numeris</label><div class="affix"><span class="pfx">RMC-</span><input type="text" id="e_rmc" autocomplete="off"></div></div>
       <div class="field"><label>Naujas / Remontas</label><select id="e_darboTipas"><option value="">—</option><option>Naujas</option><option>Remontas</option></select></div>
       <div class="field"><label>Tipas</label><select id="e_tipas"><option value="">—</option><option>Subranga</option><option>RMC</option></select></div>
@@ -539,7 +539,7 @@
 
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" inputmode="numeric" oninput="numOnly(this)" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" inputmode="numeric" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <div class="field">
@@ -1387,6 +1387,7 @@ async function uploadExtraPhotos(input){
 }
 function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
+function numDash(el){ el.value = el.value.replace(/[^0-9-]/g, ''); }
 
 // ─────────── PHOTOS ───────────
 let photos = [];

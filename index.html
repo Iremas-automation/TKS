@@ -179,6 +179,7 @@
   .affix{display:flex;}
   .affix .pfx{display:flex;align-items:center;padding:0 12px;background:var(--bg);border:1px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-size:14px;font-weight:700;color:var(--muted);white-space:nowrap;}
   .affix input{flex:1;border-top-left-radius:0;border-bottom-left-radius:0;}
+  .char-count{font-size:11px;color:var(--muted);text-align:right;margin-top:4px;}
   .crit-std{font-size:12px;color:var(--muted);margin-bottom:8px;}
   .crit-std b{color:var(--ink);font-weight:700;}
   .crit-opts{display:flex;flex-wrap:wrap;gap:8px;}
@@ -385,18 +386,19 @@
       <div class="grid2">
         <div class="field">
           <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
-          <input type="text" id="f_ok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
+          <input type="text" id="f_ok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
         <div class="field">
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
-          <input type="text" id="f_nok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
+          <input type="text" id="f_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
       </div>
 
       <!-- Komentaras -->
       <div class="field">
         <label>Komentaras<br><span class="lt">Comment</span></label>
-        <textarea id="f_komentaras" rows="3" placeholder="Papildoma informacija (nebūtina)"></textarea>
+        <textarea id="f_komentaras" rows="3" maxlength="1000" oninput="updateCount(this,'f_kom_count')" placeholder="Papildoma informacija (nebūtina)"></textarea>
+        <div class="char-count" id="f_kom_count">0 / 1000</div>
       </div>
 
       <!-- 8. Nuotraukos (mandatory) -->
@@ -520,10 +522,10 @@
       </div>
       <div class="field"><label>Suvirintojo ID</label><input type="text" id="e_welder" autocomplete="off"></div>
       <div class="grid2">
-        <div class="field"><label>OK</label><input type="text" id="e_ok" inputmode="numeric" oninput="numOnly(this)"></div>
-        <div class="field"><label>NOK</label><input type="text" id="e_nok" inputmode="numeric" oninput="numOnly(this)"></div>
+        <div class="field"><label>OK</label><input type="text" id="e_ok" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
+        <div class="field"><label>NOK</label><input type="text" id="e_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
       </div>
-      <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3"></textarea></div>
+      <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3" maxlength="1000"></textarea></div>
     </div>
     <div class="edit-foot">
       <button class="btn btn-sec" onclick="closeEdit()">Atšaukti</button>
@@ -624,11 +626,11 @@
       <div class="grid2">
         <div class="field">
           <label>OK <span class="req">*</span><br><span class="lt">OK kiekis / count</span></label>
-          <input type="text" id="x_ok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
+          <input type="text" id="x_ok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
         <div class="field">
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
-          <input type="text" id="x_nok" inputmode="numeric" oninput="numOnly(this)" placeholder="">
+          <input type="text" id="x_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
       </div>
 
@@ -639,7 +641,8 @@
 
       <div class="field">
         <label>Komentaras<br><span class="lt">Comment</span></label>
-        <textarea id="x_komentaras" rows="3" placeholder="Papildoma informacija (nebūtina)"></textarea>
+        <textarea id="x_komentaras" rows="3" maxlength="1000" oninput="updateCount(this,'x_kom_count')" placeholder="Papildoma informacija (nebūtina)"></textarea>
+        <div class="char-count" id="x_kom_count">0 / 1000</div>
       </div>
 
       <div class="field">
@@ -814,6 +817,17 @@ async function uploadFileToSp(token, folderRelPath, filename, arrayBuffer){
     }
     return true;
   }catch(fe){ console.error('Upload error:', filename, fe); return false; }
+}
+
+// Delete a single uploaded file (used to clean up if the list-item create fails)
+async function deleteFileFromSp(token, folderRelPath, filename){
+  try{
+    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFileByServerRelativePath(decodedurl='${folderRelPath}/${filename}')`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
+    });
+    return r.ok;
+  }catch(e){ console.warn('[deleteFileFromSp]', filename, e); return false; }
 }
 
 // Next protocol number per order: <IremoNr>_1, _2, … (max existing suffix + 1)
@@ -1364,6 +1378,11 @@ async function uploadExtraPhotos(input){
   input.value = '';
   const r = _viewRecords[_addPhotoTarget];
   if(!r || !files.length) return;
+  const existingCount = parseInt(r.photoCount, 10) || (r.photoNames ? r.photoNames.split(',').filter(s => s.trim()).length : 0);
+  const room = MAX_PHOTOS - existingCount;
+  if(room <= 0){ showToast(`Šis įrašas jau turi ${MAX_PHOTOS} nuotraukų (maks.)`, 'error'); return; }
+  const use = files.slice(0, room);
+  if(files.length > room) showToast(`Bus pridėtos tik ${room} nuotr. (maks. ${MAX_PHOTOS})`, 'error');
   showToast('Keliamos nuotraukos…', 'info', 8000);
   try{
     const token = await getSpToken();
@@ -1371,7 +1390,7 @@ async function uploadExtraPhotos(input){
     const prefix = safeSeg(r.rmc) || 'foto';
     const existing = (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean);
     const added = []; let i = 0, errors = 0;
-    for(const f of files){
+    for(const f of use){
       i++;
       const { blob, ext } = await processPhoto(f);
       const name = `${prefix}_${stamp}_p${String(i).padStart(2,'0')}.${ext}`;
@@ -1386,8 +1405,10 @@ async function uploadExtraPhotos(input){
   }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
 }
 function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
-function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
+function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
 function numDash(el){ el.value = el.value.replace(/[^0-9-]/g, ''); }
+const MAX_PHOTOS = 15;
+function updateCount(el, id){ const c = document.getElementById(id); if(c) c.textContent = el.value.length + ' / 1000'; }
 
 // ─────────── PHOTOS ───────────
 let photos = [];
@@ -1395,7 +1416,10 @@ let photoSeq = 0;
 
 function addPhotos(input){
   const files = Array.from(input.files || []).filter(f => f.type.startsWith('image/'));
-  files.forEach(f => { const id = 'p' + (++photoSeq); photos.push({ file:f, url:URL.createObjectURL(f), id }); });
+  const room = MAX_PHOTOS - photos.length;
+  if(room <= 0){ input.value = ''; showToast(`Daugiausia ${MAX_PHOTOS} nuotraukos`, 'error'); return; }
+  if(files.length > room) showToast(`Pridėtos tik ${room} nuotr. (maks. ${MAX_PHOTOS})`, 'error');
+  files.slice(0, room).forEach(f => { const id = 'p' + (++photoSeq); photos.push({ file:f, url:URL.createObjectURL(f), id }); });
   input.value = '';
   renderPhotos();
 }
@@ -1561,7 +1585,9 @@ async function submitForm(){
     // 3) Create the list item
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
     const protokoloNr = await nextProtokoloNr(token, iremoNr);
-    const newId = await createListItem(token, {
+    let newId;
+    try{
+      newId = await createListItem(token, {
       Title:       rmcNumber,
       IremoNr:     iremoNr,
       ProtokoloNr: protokoloNr,
@@ -1578,7 +1604,11 @@ async function submitForm(){
       PhotoCount:  uploadedNames.length,
       PhotoNames:  uploadedNames.join(', '),
       SubmittedBy: currentUser?.name || ''
-    });
+      });
+    }catch(err){
+      for(const nm of uploadedNames){ await deleteFileFromSp(token, folderRelPath, nm); }
+      throw new Error(err.message + ' (įkeltos nuotraukos pašalintos)');
+    }
 
     showToast(`✓ Pateikta · Protokolas ${protokoloNr} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(() => afterSubmit('form', {
@@ -1604,6 +1634,7 @@ function clearForm(){
   photos = [];
   renderPhotos();
   document.getElementById('photozone').style.borderColor = '';
+  document.getElementById('f_kom_count').textContent = '0 / 1000';
   onTypeChange();
 }
 
@@ -1645,7 +1676,11 @@ function onXTypeChange(){
 let xphotos = [];
 let xphotoSeq = 0;
 function addXPhotos(input){
-  Array.from(input.files || []).filter(f => f.type.startsWith('image/')).forEach(f => {
+  const files = Array.from(input.files || []).filter(f => f.type.startsWith('image/'));
+  const room = MAX_PHOTOS - xphotos.length;
+  if(room <= 0){ input.value = ''; showToast(`Daugiausia ${MAX_PHOTOS} nuotraukos`, 'error'); return; }
+  if(files.length > room) showToast(`Pridėtos tik ${room} nuotr. (maks. ${MAX_PHOTOS})`, 'error');
+  files.slice(0, room).forEach(f => {
     xphotos.push({ file:f, url:URL.createObjectURL(f), id:'xp' + (++xphotoSeq) });
   });
   input.value = '';
@@ -1745,7 +1780,9 @@ async function submitTestForm(){
 
     btn.innerHTML = '<span class="spinner"></span>Išsaugoma…';
     const protokoloNr = await nextProtokoloNr(token, iremoNr);
-    const newId = await createListItem(token, {
+    let newId;
+    try{
+      newId = await createListItem(token, {
       Title:       rmcNumber,
       IremoNr:     iremoNr,
       ProtokoloNr: protokoloNr,
@@ -1766,7 +1803,11 @@ async function submitTestForm(){
       PhotoCount:  uploadedNames.length,
       PhotoNames:  uploadedNames.join(', '),
       SubmittedBy: currentUser?.name || ''
-    });
+      });
+    }catch(err){
+      for(const nm of uploadedNames){ await deleteFileFromSp(token, folderRelPath, nm); }
+      throw new Error(err.message + ' (įkeltos nuotraukos pašalintos)');
+    }
 
     showToast(`✓ Pateikta · Protokolas ${protokoloNr} · ${test.value} · ${uploadedNames.length} nuotr.${errors ? ` (${errors} nepavyko)` : ''}`, 'success');
     setTimeout(() => afterSubmit('tests', {
@@ -1792,6 +1833,7 @@ function clearTestForm(){
   xphotos = [];
   renderXPhotos();
   document.getElementById('xphotozone').style.borderColor = '';
+  document.getElementById('x_kom_count').textContent = '0 / 1000';
   onXTypeChange();
   onTestChange();
 }

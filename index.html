@@ -997,11 +997,12 @@ let _lbList = [], _lbIdx = 0;
 
 function parsePhotoNames(raw){
   if(!raw) return [];
-  let s = String(raw)
-    .replace(/<[^>]*>/g, ' ')                                   // strip HTML (rich-text multiline columns wrap content)
-    .replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
-  return s.split(/[,\n\r]+/).map(x => x.trim()).filter(Boolean);
+  const s = String(raw)
+    .replace(/<[^>]*>/g, ' ')                                   // strip rich-text HTML tags
+    .replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&');
+  // filenames never contain spaces (safeSeg), so split on comma/whitespace and keep only image files
+  return s.split(/[,\s]+/).map(x => x.trim())
+    .filter(x => /\.(jpe?g|png|gif|webp|bmp)$/i.test(x));
 }
 function recPhotos(r){
   return parsePhotoNames(r.photoNames).map(n => r.folder + '/' + n);
@@ -1999,12 +2000,7 @@ async function deleteRecord(){
     await deleteListItem(token, _editId);
     if(folder && !await folderInUse(token, folder)){
       await recycleFolder(token, folder);
-      // remove now-empty parent folders: RMC nr, then Užsakymo nr
-      const parts = folder.split('/');
-      parts.pop();                                       // drop brėžinys leaf
-      await deleteFolderIfEmpty(token, parts.join('/')); // RMC nr level
-      parts.pop();                                       // drop RMC nr
-      await deleteFolderIfEmpty(token, parts.join('/')); // Užsakymo nr level
+      await recycleEmptyParents(token, folder);
     }
     closeEdit();
     showToast('✓ Įrašas ištrintas', 'success');
@@ -2041,6 +2037,28 @@ async function recycleFolder(token, folder){
     if(!r.ok) console.warn('[recycleFolder] HTTP', r.status);
     return r.ok;
   }catch(e){ console.warn('[recycleFolder]', e); return false; }
+}
+
+// Recycle now-empty parent folders (RMC nr, then Užsakymo nr), based on whether any
+// list record still lives under them — accurate right after the item is deleted.
+async function recycleEmptyParents(token, leafFolder){
+  try{
+    const map = await getFieldMap(token);
+    const fpCol = map['folderpath'] || 'FolderPath';
+    const parts = leafFolder.split('/');
+    parts.pop();                          // -> RMC nr path
+    const rmcPath = parts.join('/');
+    parts.pop();                          // -> Užsakymo nr path
+    const orderPath = parts.join('/');
+    for(const p of [rmcPath, orderPath]){
+      if(!p || p.length <= SP_FOLDER_BASE.length) break;   // never touch base or above
+      const url = `${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$select=Id&$filter=startswith(${fpCol},'${(p + '/').replace(/'/g, "''")}')&$top=1`;
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' } });
+      const used = r.ok ? (await r.json()).d.results.length > 0 : true;
+      if(used) break;                     // still has records; higher parents too
+      await recycleFolder(token, p);
+    }
+  }catch(e){ console.warn('[recycleEmptyParents]', e); }
 }
 
 // Theme

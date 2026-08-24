@@ -99,6 +99,8 @@
   .edit-x{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;}
   .edit-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
   .edit-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--border);}
+  .btn-del{background:var(--red);color:#fff;border:none;margin-right:auto;}
+  .btn-del:hover{background:#a83226;}
   .resubmit{max-width:560px;margin:16px auto 0;padding:14px 18px;background:rgba(30,126,74,0.1);border:1px solid var(--green);border-radius:var(--radius);}
   .resubmit #resubmitMsg{display:block;font-size:13px;color:var(--ink);margin-bottom:10px;font-weight:600;}
   .resubmit-btns{display:flex;flex-wrap:wrap;gap:8px;}
@@ -528,6 +530,7 @@
       <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3" maxlength="1000"></textarea></div>
     </div>
     <div class="edit-foot">
+      <button class="btn btn-del" id="editDelBtn" onclick="deleteRecord()">Ištrinti</button>
       <button class="btn btn-sec" onclick="closeEdit()">Atšaukti</button>
       <button class="btn btn-pri" id="editSaveBtn" onclick="saveEdit()">Išsaugoti</button>
     </div>
@@ -1644,7 +1647,7 @@ function clearForm(){
 // ─────────── RMC BANDYMAI (TESTS) TAB ───────────
 const TEST_DEFS = {
   VT: { standard: 'ISO 5817',  criteria: ['B','C','D'] },
-  PT: { standard: 'ISO 23277', criteria: ['2','3','2X'] },
+  PT: { standard: 'ISO 23277', criteria: ['2','3','2X','3X'] },
   MT: { standard: 'ISO 23278', criteria: ['2','3','2X'] },
   RT: { standard: 'ISO 10675', criteria: ['1','2','3'] },
   UT: { standard: 'ISO 11666', criteria: ['2','3'] }
@@ -1891,7 +1894,7 @@ function dismissResubmit(){ document.getElementById('resubmit').style.display = 
 let _editId = null, _editRec = null;
 function openEdit(vi){
   const r = _viewRecords[vi]; if(!r) return;
-  _editId = r.protocol; _editRec = r;
+  _editId = r.itemId; _editRec = r;
   document.getElementById('e_iremo').value      = (r.iremo || '').replace(/^I-/, '');
   document.getElementById('e_rmc').value         = (r.rmc || '').replace(/^RMC-/, '');
   document.getElementById('e_darboTipas').value  = r.darboTipas || '';
@@ -1974,6 +1977,54 @@ async function saveEdit(){
   }finally{
     btn.disabled = false; btn.textContent = 'Išsaugoti';
   }
+}
+
+// Delete a record (and its folder/photos if no other record uses it)
+async function deleteRecord(){
+  if(_editId == null) return;
+  if(!confirm('Ištrinti šį įrašą? Nuotraukos bus perkeltos į SharePoint šiukšliadėžę (atkuriama 93 d.).')) return;
+  const btn = document.getElementById('editDelBtn');
+  btn.disabled = true; btn.textContent = 'Trinama…';
+  try{
+    const token = await getSpToken();
+    const folder = _editRec ? _editRec.folder : '';
+    await deleteListItem(token, _editId);
+    if(folder && !await folderInUse(token, folder)) await recycleFolder(token, folder);
+    closeEdit();
+    showToast('✓ Įrašas ištrintas', 'success');
+    loadList();
+  }catch(e){
+    showToast('Klaida: ' + e.message, 'error');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Ištrinti';
+  }
+}
+async function deleteListItem(token, id){
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items(${id})`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
+  });
+  if(!r.ok){ const t = await r.text(); let m = r.status; try{ m = JSON.parse(t)?.error?.message?.value || r.status; }catch{} throw new Error('trynimo klaida: ' + m); }
+  return true;
+}
+async function folderInUse(token, folder){
+  try{
+    const map = await getFieldMap(token);
+    const fpCol = map['folderpath'] || 'FolderPath';
+    const url = `${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$select=Id&$filter=${fpCol} eq '${folder.replace(/'/g, "''")}'&$top=5`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' } });
+    if(!r.ok) return true;   // if unsure, keep the folder
+    return (await r.json()).d.results.length > 0;
+  }catch(e){ return true; }
+}
+async function recycleFolder(token, folder){
+  try{
+    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${folder}')/recycle`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) console.warn('[recycleFolder] HTTP', r.status);
+    return r.ok;
+  }catch(e){ console.warn('[recycleFolder]', e); return false; }
 }
 
 // Theme

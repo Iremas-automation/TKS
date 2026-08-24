@@ -1336,8 +1336,11 @@ function applyFilters(){
       if(from && d < new Date(from + 'T00:00:00')) return false;
       if(to   && d > new Date(to   + 'T23:59:59')) return false;
     }
-    if(q && ![r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.komentaras, r.by]
-        .some(v => (v || '').toString().toLowerCase().includes(q))) return false;
+    if(q){
+      const hay = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.komentaras, r.by]
+        .join(' ').toLowerCase();
+      if(!q.split(/\s+/).filter(Boolean).every(t => hay.includes(t))) return false;
+    }
     return true;
   });
   renderList(list);

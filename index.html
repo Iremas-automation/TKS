@@ -995,8 +995,16 @@ const _imgCache = {};      // server-relative path -> object URL
 let _thumbObserver = null;
 let _lbList = [], _lbIdx = 0;
 
+function parsePhotoNames(raw){
+  if(!raw) return [];
+  let s = String(raw)
+    .replace(/<[^>]*>/g, ' ')                                   // strip HTML (rich-text multiline columns wrap content)
+    .replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+  return s.split(/[,\n\r]+/).map(x => x.trim()).filter(Boolean);
+}
 function recPhotos(r){
-  return (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean).map(n => r.folder + '/' + n);
+  return parsePhotoNames(r.photoNames).map(n => r.folder + '/' + n);
 }
 
 // Fetch a SharePoint file's bytes with the user's token and cache an object URL
@@ -1384,7 +1392,7 @@ async function uploadExtraPhotos(input){
   input.value = '';
   const r = _viewRecords[_addPhotoTarget];
   if(!r || !files.length) return;
-  const existingCount = parseInt(r.photoCount, 10) || (r.photoNames ? r.photoNames.split(',').filter(s => s.trim()).length : 0);
+  const existingCount = parseInt(r.photoCount, 10) || parsePhotoNames(r.photoNames).length;
   const room = MAX_PHOTOS - existingCount;
   if(room <= 0){ showToast(`Šis įrašas jau turi ${MAX_PHOTOS} nuotraukų (maks.)`, 'error'); return; }
   const use = files.slice(0, room);
@@ -1394,7 +1402,7 @@ async function uploadExtraPhotos(input){
     const token = await getSpToken();
     const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
     const prefix = safeSeg(r.rmc) || 'foto';
-    const existing = (r.photoNames || '').split(',').map(s => s.trim()).filter(Boolean);
+    const existing = parsePhotoNames(r.photoNames);
     const added = []; let i = 0, errors = 0;
     for(const f of use){
       i++;
@@ -1989,7 +1997,15 @@ async function deleteRecord(){
     const token = await getSpToken();
     const folder = _editRec ? _editRec.folder : '';
     await deleteListItem(token, _editId);
-    if(folder && !await folderInUse(token, folder)) await recycleFolder(token, folder);
+    if(folder && !await folderInUse(token, folder)){
+      await recycleFolder(token, folder);
+      // remove now-empty parent folders: RMC nr, then Užsakymo nr
+      const parts = folder.split('/');
+      parts.pop();                                       // drop brėžinys leaf
+      await deleteFolderIfEmpty(token, parts.join('/')); // RMC nr level
+      parts.pop();                                       // drop RMC nr
+      await deleteFolderIfEmpty(token, parts.join('/')); // Užsakymo nr level
+    }
     closeEdit();
     showToast('✓ Įrašas ištrintas', 'success');
     loadList();

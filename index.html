@@ -84,6 +84,7 @@
   .badge .l{font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.7;margin-top:3px;}
   .badge.ok{background:rgba(60,120,90,.16);color:#3f7d5c;}
   .badge.nok{background:rgba(170,80,72,.16);color:#b0645c;}
+  .badge.okn{background:rgba(210,150,40,.16);color:#a9781f;}
   .rec-meta{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12px;color:var(--muted);margin-bottom:10px;}
   .rec-meta b{color:var(--ink);font-weight:600;}
   .rec-folder{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--orange-dim);text-decoration:none;}
@@ -315,13 +316,13 @@
       <!-- 0. Iremo užsakymo Nr -->
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" inputmode="numeric" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="f_iremo" inputmode="numeric" maxlength="20" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <!-- 1. RMC numeris -->
       <div class="field">
         <label>RMC numeris <span class="req">*</span></label>
-        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="f_rmc" placeholder="2026-001" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="f_rmc" maxlength="20" placeholder="2026-001" autocomplete="off"></div>
       </div>
 
       <!-- Naujas / Remontas -->
@@ -381,7 +382,7 @@
       <!-- 5. Detalės brėžinio numeris -->
       <div class="field">
         <label>Detalės brėžinio numeris <span class="req">*</span><br><span class="lt">Part Drawing No.</span></label>
-        <input type="text" id="f_drawing" placeholder="pvz. BR-877-14" autocomplete="off" required>
+        <input type="text" id="f_drawing" maxlength="20" placeholder="pvz. BR-877-14" autocomplete="off" required>
       </div>
 
       <!-- 6. OK / NOK kiekiai -->
@@ -394,6 +395,11 @@
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
           <input type="text" id="f_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
+      </div>
+
+      <div class="field">
+        <label>OK (su nuokrypiais)<br><span class="lt">OK with deviations — kiekis / count</span></label>
+        <input type="text" id="f_okn" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
       </div>
 
       <!-- Komentaras -->
@@ -509,14 +515,14 @@
   <div class="edit-card">
     <div class="edit-head"><span>Redaguoti įrašą</span><button class="edit-x" onclick="closeEdit()">✕</button></div>
     <div class="edit-body">
-      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" inputmode="numeric" oninput="numDash(this)" autocomplete="off"></div></div>
-      <div class="field"><label>RMC numeris</label><div class="affix"><span class="pfx">RMC-</span><input type="text" id="e_rmc" autocomplete="off"></div></div>
+      <div class="field"><label>Iremo užsakymo Nr</label><div class="affix"><span class="pfx">I-</span><input type="text" id="e_iremo" inputmode="numeric" maxlength="20" oninput="numDash(this)" autocomplete="off"></div></div>
+      <div class="field"><label>RMC numeris</label><div class="affix"><span class="pfx">RMC-</span><input type="text" id="e_rmc" maxlength="20" autocomplete="off"></div></div>
       <div class="field"><label>Naujas / Remontas</label><select id="e_darboTipas"><option value="">—</option><option>Naujas</option><option>Remontas</option></select></div>
       <div class="field"><label>Tipas</label><select id="e_tipas"><option value="">—</option><option>Subranga</option><option>RMC</option></select></div>
       <div class="field"><label>Pavadinimas</label><input type="text" id="e_pavadinimas" autocomplete="off"></div>
       <div class="field"><label>Operacija</label><select id="e_busena"><option value="">—</option><option>Paruošimas</option><option>Mechaninis</option><option>Prieš suvirinimą</option><option>Suvirinimas</option><option>Dažymas</option></select></div>
       <div class="field"><label>Kontrolė</label><select id="e_kontrole"><option value="">—</option><option>Galutinis</option><option>Tarpinis</option></select></div>
-      <div class="field"><label>Detalės brėžinio numeris</label><input type="text" id="e_brezinys" autocomplete="off"></div>
+      <div class="field"><label>Detalės brėžinio numeris</label><input type="text" id="e_brezinys" maxlength="20" autocomplete="off"></div>
       <div class="field"><label>Bandymas</label><select id="e_test"><option value="">—</option><option>VT</option><option>PT</option><option>MT</option><option>RT</option><option>UT</option></select></div>
       <div class="grid2">
         <div class="field"><label>Standartas</label><input type="text" id="e_standartas" autocomplete="off"></div>
@@ -527,6 +533,7 @@
         <div class="field"><label>OK</label><input type="text" id="e_ok" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
         <div class="field"><label>NOK</label><input type="text" id="e_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
       </div>
+      <div class="field"><label>OK (su nuokrypiais)</label><input type="text" id="e_okn" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
       <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3" maxlength="1000"></textarea></div>
     </div>
     <div class="edit-foot">
@@ -544,12 +551,12 @@
 
       <div class="field">
         <label>Iremo užsakymo Nr <span class="req">*</span><br><span class="lt">Iremas Order No.</span></label>
-        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" inputmode="numeric" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">I-</span><input type="text" id="x_iremo" inputmode="numeric" maxlength="20" oninput="numDash(this)" placeholder="260361" autocomplete="off"></div>
       </div>
 
       <div class="field">
         <label>RMC numeris <span class="req">*</span></label>
-        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="x_rmc" placeholder="2026-001" autocomplete="off"></div>
+        <div class="affix"><span class="pfx">RMC-</span><input type="text" id="x_rmc" maxlength="20" placeholder="2026-001" autocomplete="off"></div>
       </div>
 
       <div class="field">
@@ -603,7 +610,7 @@
 
       <div class="field">
         <label>Detalės brėžinio numeris <span class="req">*</span><br><span class="lt">Part Drawing No.</span></label>
-        <input type="text" id="x_drawing" placeholder="pvz. BR-877-14" autocomplete="off">
+        <input type="text" id="x_drawing" maxlength="20" placeholder="pvz. BR-877-14" autocomplete="off">
       </div>
 
       <!-- Bandymas (test) -->
@@ -635,6 +642,11 @@
           <label>NOK <span class="req">*</span><br><span class="lt">NOK kiekis / count</span></label>
           <input type="text" id="x_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
         </div>
+      </div>
+
+      <div class="field">
+        <label>OK (su nuokrypiais)<br><span class="lt">OK with deviations — kiekis / count</span></label>
+        <input type="text" id="x_okn" inputmode="numeric" maxlength="4" oninput="numOnly(this)" placeholder="">
       </div>
 
       <div class="field">
@@ -1212,6 +1224,7 @@ async function loadList(){
         brezinys:   it[col('BreziniNr')] || '',
         ok:         it[col('OK')] ?? '',
         nok:        it[col('NOK')] ?? '',
+        okn:        it[col('OKN')] ?? '',
         darboTipas: it[col('DarboTipas')] || '',
         testas:     it[col('Testas')] || '',
         standartas: it[col('Standartas')] || '',
@@ -1245,10 +1258,11 @@ function renderList(records){
   if(!records.length){ cont.innerHTML = '<div class="list-msg">Įrašų nėra.</div>'; return; }
   _viewRecords = records;
   cont.innerHTML = records.map((r, vi) => {
-    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0;
+    const okN = Number(r.ok) || 0, nokN = Number(r.nok) || 0, oknN = Number(r.okn) || 0;
     const badges = `
       <span class="badge ok"><span class="n">${okN}</span><span class="l">OK</span></span>
-      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>`;
+      <span class="badge nok"><span class="n">${nokN}</span><span class="l">NOK</span></span>${oknN ? `
+      <span class="badge okn"><span class="n">${oknN}</span><span class="l">OK±</span></span>` : ''}`;
     const detail = r.tipas === 'Subranga' ? r.pavadinimas : r.busena;
     const date   = r.created ? new Date(r.created).toLocaleDateString('lt-LT') : '';
     const parts = [];
@@ -1519,14 +1533,17 @@ async function submitForm(){
   const kontrole   = document.getElementById('f_kontrole');
   const okEl       = document.getElementById('f_ok');
   const nokEl      = document.getElementById('f_nok');
+  const oknEl      = document.getElementById('f_okn');
   const darboTipas = document.getElementById('f_darboTipas');
 
-  [iremo, rmc, drawing, pav, busena, kontrole, okEl, nokEl, darboTipas].forEach(clearInvalid);
+  [iremo, rmc, drawing, pav, busena, kontrole, okEl, nokEl, oknEl, darboTipas].forEach(clearInvalid);
 
   const okN  = parseInt(okEl.value, 10);
   const nokN = parseInt(nokEl.value, 10);
+  const oknN = parseInt(oknEl.value, 10);
   const okVal  = Number.isFinite(okN)  ? okN  : 0;
   const nokVal = Number.isFinite(nokN) ? nokN : 0;
+  const oknVal = Number.isFinite(oknN) ? oknN : 0;
 
   let valid = true;
   if(!iremo.value.trim()){ markInvalid(iremo); valid = false; }
@@ -1538,7 +1555,7 @@ async function submitForm(){
   if(tipas === 'RMC' && !kontrole.value){ markInvalid(kontrole); valid = false; }
   if(okEl.value !== '' && (!Number.isFinite(okN) || okN < 0)){ markInvalid(okEl); valid = false; }
   if(nokEl.value !== '' && (!Number.isFinite(nokN) || nokN < 0)){ markInvalid(nokEl); valid = false; }
-  if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
+  if(okVal + nokVal + oknVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK / NOK kiekį', 'error'); valid = false; }
   if(!darboTipas.value){ markInvalid(darboTipas); valid = false; }
   if(photos.length === 0){ document.getElementById('photozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
 
@@ -1613,6 +1630,7 @@ async function submitForm(){
       BreziniNr:   drawing.value.trim(),
       OK:          okVal,
       NOK:         nokVal,
+      OKN:         oknVal,
       DarboTipas:  darboTipas.value,
       Komentaras:  document.getElementById('f_komentaras').value.trim(),
       FolderPath:  folderRelPath,
@@ -1641,7 +1659,7 @@ async function submitForm(){
 }
 
 function clearForm(){
-  ['f_iremo','f_rmc','f_drawing','f_pavadinimas','f_busena','f_kontrole','f_ok','f_nok','f_darboTipas','f_komentaras'].forEach(id=>{
+  ['f_iremo','f_rmc','f_drawing','f_pavadinimas','f_busena','f_kontrole','f_ok','f_nok','f_okn','f_darboTipas','f_komentaras'].forEach(id=>{
     const el = document.getElementById(id); el.value = ''; clearInvalid(el);
   });
   document.querySelectorAll('[name=tipas]').forEach(r=>r.checked=false);
@@ -1731,11 +1749,12 @@ async function submitTestForm(){
   const welder   = document.getElementById('x_welder');
   const okEl     = document.getElementById('x_ok');
   const nokEl    = document.getElementById('x_nok');
+  const oknEl    = document.getElementById('x_okn');
 
-  [iremo, rmc, drawing, pav, busena, kontrole, darboTip, test, welder, okEl, nokEl].forEach(clearInvalid);
+  [iremo, rmc, drawing, pav, busena, kontrole, darboTip, test, welder, okEl, nokEl, oknEl].forEach(clearInvalid);
 
-  const okN = parseInt(okEl.value, 10), nokN = parseInt(nokEl.value, 10);
-  const okVal = Number.isFinite(okN) ? okN : 0, nokVal = Number.isFinite(nokN) ? nokN : 0;
+  const okN = parseInt(okEl.value, 10), nokN = parseInt(nokEl.value, 10), oknN = parseInt(oknEl.value, 10);
+  const okVal = Number.isFinite(okN) ? okN : 0, nokVal = Number.isFinite(nokN) ? nokN : 0, oknVal = Number.isFinite(oknN) ? oknN : 0;
   const crit = getCheckedCriteria();
 
   let valid = true;
@@ -1750,7 +1769,7 @@ async function submitTestForm(){
   if(!test.value){ markInvalid(test); valid = false; }
   if(test.value && crit.length === 0){ showToast('Pažymėkite priėmimo kriterijų', 'error'); valid = false; }
   if(!welder.value.trim()){ markInvalid(welder); valid = false; }
-  if(okVal + nokVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK arba NOK kiekį', 'error'); valid = false; }
+  if(okVal + nokVal + oknVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK / NOK kiekį', 'error'); valid = false; }
   if(xphotos.length === 0){ document.getElementById('xphotozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }
   if(!valid){ return; }
 
@@ -1812,6 +1831,7 @@ async function submitTestForm(){
       SuvirintojoID: welder.value.trim(),
       OK:          okVal,
       NOK:         nokVal,
+      OKN:         oknVal,
       DarboTipas:  darboTip.value,
       Komentaras:  document.getElementById('x_komentaras').value.trim(),
       FolderPath:  folderRelPath,
@@ -1840,7 +1860,7 @@ async function submitTestForm(){
 }
 
 function clearTestForm(){
-  ['x_iremo','x_rmc','x_drawing','x_pavadinimas','x_busena','x_kontrole','x_darboTipas','x_test','x_welder','x_ok','x_nok','x_komentaras'].forEach(id=>{
+  ['x_iremo','x_rmc','x_drawing','x_pavadinimas','x_busena','x_kontrole','x_darboTipas','x_test','x_welder','x_ok','x_nok','x_okn','x_komentaras'].forEach(id=>{
     const el = document.getElementById(id); el.value = ''; clearInvalid(el);
   });
   document.querySelectorAll('[name=xtipas]').forEach(r => r.checked = false);
@@ -1918,6 +1938,7 @@ function openEdit(vi){
   document.getElementById('e_welder').value      = r.welder || '';
   document.getElementById('e_ok').value          = (r.ok === '' || r.ok == null) ? '' : r.ok;
   document.getElementById('e_nok').value         = (r.nok === '' || r.nok == null) ? '' : r.nok;
+  document.getElementById('e_okn').value         = (r.okn === '' || r.okn == null) ? '' : r.okn;
   document.getElementById('e_komentaras').value  = r.komentaras || '';
   document.getElementById('editModal').style.display = 'flex';
 }
@@ -1930,6 +1951,7 @@ async function saveEdit(){
     const token = await getSpToken();
     const okN = parseInt(document.getElementById('e_ok').value, 10);
     const nokN = parseInt(document.getElementById('e_nok').value, 10);
+    const oknN = parseInt(document.getElementById('e_okn').value, 10);
     const newTitle = 'RMC-' + document.getElementById('e_rmc').value.trim();
 
     // If the folder path changed (order / RMC / drawing), move the folder to match
@@ -1973,6 +1995,7 @@ async function saveEdit(){
       SuvirintojoID: document.getElementById('e_welder').value.trim(),
       OK:          Number.isFinite(okN) ? okN : 0,
       NOK:         Number.isFinite(nokN) ? nokN : 0,
+      OKN:         Number.isFinite(oknN) ? oknN : 0,
       Komentaras:  document.getElementById('e_komentaras').value.trim()
     };
     if(folderPath) fields.FolderPath = folderPath;

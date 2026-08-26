@@ -1435,7 +1435,7 @@ async function uploadExtraPhotos(input){
 }
 function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
-function numDash(el){ el.value = el.value.replace(/[^0-9-]/g, ''); }
+function numDash(el){ el.value = el.value.replace(/\./g, '-').replace(/[^0-9-]/g, ''); }
 const MAX_PHOTOS = 15;
 function updateCount(el, id){ const c = document.getElementById(id); if(c) c.textContent = el.value.length + ' / 1000'; }
 

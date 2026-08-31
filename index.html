@@ -1007,6 +1007,17 @@ const _imgCache = {};      // server-relative path -> object URL
 let _thumbObserver = null;
 let _lbList = [], _lbIdx = 0;
 
+function stripRich(raw){
+  if(!raw) return '';
+  return String(raw)
+    .replace(/<\/(div|p)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n')   // keep line breaks
+    .replace(/<[^>]*>/g, '')                                          // drop remaining tags (ExternalClass wrappers etc.)
+    .replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
 function parsePhotoNames(raw){
   if(!raw) return [];
   const s = String(raw)
@@ -1230,7 +1241,7 @@ async function loadList(){
         standartas: it[col('Standartas')] || '',
         kriterijus: it[col('Kriterijus')] || '',
         welder:     it[col('SuvirintojoID')] || '',
-        komentaras: it[col('Komentaras')] || '',
+        komentaras: stripRich(it[col('Komentaras')]),
         photoCount: it[col('PhotoCount')] ?? '',
         photoNames: it[col('PhotoNames')] || '',
         folder:     folder,

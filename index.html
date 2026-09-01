@@ -1597,17 +1597,19 @@ async function submitForm(){
   const orderSeg  = safeSeg(iremoNr);
   const rmcSeg    = safeSeg(rmcNumber);
   const brezSeg   = safeSeg(drawing.value.trim());
-  const folderRelPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+  const brezPath  = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+  const folderRelPath = `${brezPath}/Matavimai`;
 
   try{
     btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
 
-    // 1) Create the folder tree: Užsakymo nr → RMC nr → Brėžinio nr
+    // 1) Create the folder tree: Užsakymo nr → RMC nr → Brėžinio nr → Matavimai
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
     await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
     await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
+    await ensureSpFolder(token, brezPath);
     const folderOk = await ensureSpFolder(token, folderRelPath);
     if(!folderOk) throw new Error('nepavyko sukurti SharePoint aplanko');
 
@@ -1804,11 +1806,13 @@ async function submitTestForm(){
     btn.innerHTML = '<span class="spinner"></span>Jungiamasi…';
     const token = await getSpToken();
 
-    const folderRelPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+    const brezPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+    const folderRelPath = `${brezPath}/${safeSeg(test.value)}`;
     btn.innerHTML = '<span class="spinner"></span>Kuriamas aplankas…';
     await ensureSpFolder(token, SP_FOLDER_BASE);
     await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
     await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
+    await ensureSpFolder(token, brezPath);
     if(!await ensureSpFolder(token, folderRelPath)) throw new Error('nepavyko sukurti aplanko');
 
     btn.innerHTML = '<span class="spinner"></span>Keliamos nuotraukos…';
@@ -1972,19 +1976,24 @@ async function saveEdit(){
       const orderSeg = safeSeg('I-' + document.getElementById('e_iremo').value.trim());
       const rmcSeg   = safeSeg(newTitle);
       const brezSeg  = safeSeg(document.getElementById('e_brezinys').value.trim());
-      const newFolder = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+      const leaf     = folderPath.split('/').pop();   // keep existing leaf (Matavimai / VT / PT …)
+      const newBrezPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
+      const newFolder = `${newBrezPath}/${leaf}`;
       if(newFolder !== folderPath){
         await ensureSpFolder(token, SP_FOLDER_BASE);
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
+        await ensureSpFolder(token, newBrezPath);
         const res = await renameSpFolder(token, folderPath, newFolder);
         if(res.ok){
-          // remove now-empty old parent folders: old RMC nr, then old Užsakymo nr
+          // remove now-empty old parents up the tree: brėžinys, RMC nr, Užsakymo nr
           const parts = folderPath.split('/');
-          parts.pop();                                       // drop old brėžinys leaf
-          await deleteFolderIfEmpty(token, parts.join('/')); // old RMC nr level
-          parts.pop();                                       // drop old RMC nr
-          await deleteFolderIfEmpty(token, parts.join('/')); // old Užsakymo nr level
+          parts.pop();                                       // drop old leaf
+          while(parts.join('/').length > SP_FOLDER_BASE.length){
+            const ok = await deleteFolderIfEmpty(token, parts.join('/'));
+            if(!ok) break;                                   // not empty (or failed) → stop
+            parts.pop();
+          }
           folderPath = newFolder;
         }
         else { renameNote = res.reason; }
@@ -2080,17 +2089,15 @@ async function recycleEmptyParents(token, leafFolder){
     const map = await getFieldMap(token);
     const fpCol = map['folderpath'] || 'FolderPath';
     const parts = leafFolder.split('/');
-    parts.pop();                          // -> RMC nr path
-    const rmcPath = parts.join('/');
-    parts.pop();                          // -> Užsakymo nr path
-    const orderPath = parts.join('/');
-    for(const p of [rmcPath, orderPath]){
-      if(!p || p.length <= SP_FOLDER_BASE.length) break;   // never touch base or above
+    parts.pop();                          // drop the leaf (Matavimai / VT / …)
+    while(parts.join('/').length > SP_FOLDER_BASE.length){
+      const p = parts.join('/');
       const url = `${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$select=Id&$filter=startswith(${fpCol},'${(p + '/').replace(/'/g, "''")}')&$top=1`;
       const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' } });
       const used = r.ok ? (await r.json()).d.results.length > 0 : true;
       if(used) break;                     // still has records; higher parents too
       await recycleFolder(token, p);
+      parts.pop();
     }
   }catch(e){ console.warn('[recycleEmptyParents]', e); }
 }

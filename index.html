@@ -73,7 +73,8 @@
   .rec-rmc{font-family:var(--font);font-size:17px;font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:8px;}
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
   .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
-  .rec-addphoto{margin-left:auto;padding:6px 10px;}
+  .rec-addphoto{padding:6px 10px;}
+  .rec-repair{margin-left:auto;}
   .photo-src{position:fixed;inset:0;z-index:360;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
   .photo-src-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;box-shadow:var(--shadow);}
   .photo-src-card button{font-family:var(--font);font-size:15px;font-weight:600;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;}
@@ -547,6 +548,7 @@
         <div class="field"><label>NOK</label><input type="text" id="e_nok" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
       </div>
       <div class="field"><label>OK (su nuokrypiais)</label><input type="text" id="e_okn" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
+      <div class="field"><label>Taisymas</label><select id="e_taisymas"><option value="">—</option><option>Bus taisoma</option><option>Pataisyta</option></select></div>
       <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3" maxlength="1000"></textarea></div>
     </div>
     <div class="edit-foot">
@@ -1320,10 +1322,9 @@ function renderList(records){
           ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
           : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
         <div class="rec-actions">
-          <button class="rec-btn${r.taisymas==='Bus taisoma'?' active-fix':''}" onclick="setRepairStatus(${vi},'Bus taisoma')">🔧 Bus taisoma</button>
-          <button class="rec-btn${r.taisymas==='Pataisyta'?' active-done':''}" onclick="setRepairStatus(${vi},'Pataisyta')">✓ Pataisyta</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
+          <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' active-fix':r.taisymas==='Pataisyta'?' active-done':''}" onclick="cycleRepairStatus(${vi})">${r.taisymas==='Bus taisoma'?'🔧 Bus taisoma':r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Taisymas'}</button>
           <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
         </div>
       </div>
@@ -1467,10 +1468,11 @@ async function uploadExtraPhotos(input){
   }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
 }
 
-// Mark a record as "Bus taisoma" / "Pataisyta" (toggles off if already set)
-async function setRepairStatus(vi, status){
+// One button cycles: none → Bus taisoma → Pataisyta → none
+const NEXT_REPAIR = { '': 'Bus taisoma', 'Bus taisoma': 'Pataisyta', 'Pataisyta': '' };
+async function cycleRepairStatus(vi){
   const r = _viewRecords[vi]; if(!r) return;
-  const newStatus = (r.taisymas === status) ? '' : status;
+  const newStatus = NEXT_REPAIR[r.taisymas] ?? 'Bus taisoma';
   try{
     const token = await getSpToken();
     await updateListItem(token, r.itemId, { Taisymas: newStatus });
@@ -1988,6 +1990,7 @@ function openEdit(vi){
   document.getElementById('e_nok').value         = (r.nok === '' || r.nok == null) ? '' : r.nok;
   document.getElementById('e_okn').value         = (r.okn === '' || r.okn == null) ? '' : r.okn;
   document.getElementById('e_komentaras').value  = r.komentaras || '';
+  document.getElementById('e_taisymas').value    = r.taisymas || '';
   document.getElementById('editModal').style.display = 'flex';
 }
 function closeEdit(){ document.getElementById('editModal').style.display = 'none'; _editId = null; }
@@ -2049,7 +2052,8 @@ async function saveEdit(){
       OK:          Number.isFinite(okN) ? okN : 0,
       NOK:         Number.isFinite(nokN) ? nokN : 0,
       OKN:         Number.isFinite(oknN) ? oknN : 0,
-      Komentaras:  document.getElementById('e_komentaras').value.trim()
+      Komentaras:  document.getElementById('e_komentaras').value.trim(),
+      Taisymas:    document.getElementById('e_taisymas').value
     };
     if(folderPath) fields.FolderPath = folderPath;
     await updateListItem(token, _editId, fields);

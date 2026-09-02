@@ -101,6 +101,10 @@
   .rec-status.done{background:var(--green);color:#fff;}
   .rec-btn.active-fix{background:var(--red);color:#fff;border-color:var(--red);}
   .rec-btn.active-done{background:var(--green);color:#fff;border-color:var(--green);}
+  .rec-repair.to-done{border-color:var(--green);color:var(--green);}
+  .rec-repair.to-done:hover{background:var(--green);color:#fff;border-color:var(--green);}
+  .rec-repair.is-done{opacity:.5;cursor:default;color:var(--green);border-color:var(--green);}
+  .rec-repair.is-done:hover{background:var(--surface);color:var(--green);border-color:var(--green);}
   .rec-edit{position:absolute;bottom:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.75;box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .rec-edit:hover{opacity:1;border-color:var(--orange-dim);}
   .edit-modal{position:fixed;inset:0;z-index:350;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -382,6 +386,7 @@
           <option value="">— Pasirinkite —</option>
           <option value="Paruošimas">Paruošimas</option>
           <option value="Mechaninis">Mechaninis</option>
+          <option value="Surinkimas">Surinkimas</option>
           <option value="Prieš suvirinimą">Prieš suvirinimą</option>
           <option value="Suvirinimas">Suvirinimas</option>
           <option value="Dažymas">Dažymas</option>
@@ -456,6 +461,7 @@
         <div class="fgroup-title">Operacija</div>
         <label class="fopt"><input type="checkbox" data-g="op" value="Paruošimas" onchange="applyFilters()"> Paruošimas</label>
         <label class="fopt"><input type="checkbox" data-g="op" value="Mechaninis" onchange="applyFilters()"> Mechaninis</label>
+        <label class="fopt"><input type="checkbox" data-g="op" value="Surinkimas" onchange="applyFilters()"> Surinkimas</label>
         <label class="fopt"><input type="checkbox" data-g="op" value="Prieš suvirinimą" onchange="applyFilters()"> Prieš suvirinimą</label>
         <label class="fopt"><input type="checkbox" data-g="op" value="Suvirinimas" onchange="applyFilters()"> Suvirinimas</label>
         <label class="fopt"><input type="checkbox" data-g="op" value="Dažymas" onchange="applyFilters()"> Dažymas</label>
@@ -534,7 +540,7 @@
       <div class="field"><label>Naujas / Remontas</label><select id="e_darboTipas"><option value="">—</option><option>Naujas</option><option>Remontas</option></select></div>
       <div class="field"><label>Tipas</label><select id="e_tipas"><option value="">—</option><option>Subranga</option><option>RMC</option></select></div>
       <div class="field"><label>Pavadinimas</label><input type="text" id="e_pavadinimas" autocomplete="off"></div>
-      <div class="field"><label>Operacija</label><select id="e_busena"><option value="">—</option><option>Paruošimas</option><option>Mechaninis</option><option>Prieš suvirinimą</option><option>Suvirinimas</option><option>Dažymas</option></select></div>
+      <div class="field"><label>Operacija</label><select id="e_busena"><option value="">—</option><option>Paruošimas</option><option>Mechaninis</option><option>Surinkimas</option><option>Prieš suvirinimą</option><option>Suvirinimas</option><option>Dažymas</option></select></div>
       <div class="field"><label>Kontrolė</label><select id="e_kontrole"><option value="">—</option><option>Galutinis</option><option>Tarpinis</option></select></div>
       <div class="field"><label>Detalės brėžinio numeris</label><input type="text" id="e_brezinys" maxlength="20" autocomplete="off"></div>
       <div class="field"><label>Bandymas</label><select id="e_test"><option value="">—</option><option>VT</option><option>PT</option><option>MT</option><option>RT</option><option>UT</option></select></div>
@@ -617,6 +623,7 @@
           <option value="">— Pasirinkite —</option>
           <option value="Paruošimas">Paruošimas</option>
           <option value="Mechaninis">Mechaninis</option>
+          <option value="Surinkimas">Surinkimas</option>
           <option value="Prieš suvirinimą">Prieš suvirinimą</option>
           <option value="Suvirinimas">Suvirinimas</option>
           <option value="Dažymas">Dažymas</option>
@@ -638,6 +645,9 @@
           <option value="MT">MT — Magnetic Particle Testing</option>
           <option value="RT">RT — Radiographic Testing</option>
           <option value="UT">UT — Ultrasonic Testing</option>
+          <option value="Kopėčių patikra">Kopėčių patikra</option>
+          <option value="Kėlimo įrenginių patikra">Kėlimo įrenginių patikra</option>
+          <option value="HB">HB — Hidraulinis bandymas</option>
         </select>
       </div>
 
@@ -1324,7 +1334,7 @@ function renderList(records){
         <div class="rec-actions">
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
-          <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' active-fix':r.taisymas==='Pataisyta'?' active-done':''}" onclick="cycleRepairStatus(${vi})">${r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Bus taisoma'}</button>
+          <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' to-done':''}${r.taisymas==='Pataisyta'?' is-done':''}" ${r.taisymas==='Pataisyta'?'disabled':''} onclick="cycleRepairStatus(${vi})">${r.taisymas==='Bus taisoma'?'✓ Pataisyta':r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Bus taisoma'}</button>
           <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
         </div>
       </div>
@@ -1468,8 +1478,8 @@ async function uploadExtraPhotos(input){
   }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
 }
 
-// One button cycles: none → Bus taisoma → Pataisyta → none
-const NEXT_REPAIR = { '': 'Bus taisoma', 'Bus taisoma': 'Pataisyta', 'Pataisyta': '' };
+// Button advances: none → Bus taisoma → Pataisyta, then stops. Removal is only via the edit window.
+const NEXT_REPAIR = { '': 'Bus taisoma', 'Bus taisoma': 'Pataisyta' };
 // Robust single-field write (falls back to the display name so a manually-added column still writes)
 async function setListField(token, id, displayName, value){
   const map = await getFieldMap(token);
@@ -1491,11 +1501,12 @@ async function setListField(token, id, displayName, value){
 }
 async function cycleRepairStatus(vi){
   const r = _viewRecords[vi]; if(!r) return;
-  const newStatus = NEXT_REPAIR[r.taisymas] ?? 'Bus taisoma';
+  const newStatus = NEXT_REPAIR[r.taisymas];
+  if(!newStatus) return;                    // already Pataisyta → button does nothing
   try{
     const token = await getSpToken();
     await setListField(token, r.itemId, 'Taisymas', newStatus);
-    showToast(newStatus ? '✓ Pažymėta: ' + newStatus : '✓ Žyma nuimta', 'success');
+    showToast('✓ Pažymėta: ' + newStatus, 'success');
     loadList();
   }catch(e){ showToast('Klaida (Taisymas): ' + e.message, 'error', 8000); }
 }
@@ -1744,7 +1755,10 @@ const TEST_DEFS = {
   PT: { standard: 'ISO 23277', criteria: ['2','3','2X','3X'] },
   MT: { standard: 'ISO 23278', criteria: ['2','3','2X'] },
   RT: { standard: 'ISO 10675', criteria: ['1','2','3'] },
-  UT: { standard: 'ISO 11666', criteria: ['2','3'] }
+  UT: { standard: 'ISO 11666', criteria: ['2','3'] },
+  'Kopėčių patikra':        { standard: '', criteria: [] },
+  'Kėlimo įrenginių patikra':{ standard: '', criteria: [] },
+  HB:                       { standard: '', criteria: [] }
 };
 
 function onTestChange(){
@@ -1753,11 +1767,12 @@ function onTestChange(){
   const std  = document.getElementById('x_std');
   const opts = document.getElementById('x_crit');
   const def  = TEST_DEFS[test];
-  wrap.classList.toggle('show', !!def);
-  if(!def){ std.innerHTML = ''; opts.innerHTML = ''; return; }
-  std.innerHTML = `Standartas: <b>${esc(def.standard)}</b> — pažymėkite lygį`;
-  opts.innerHTML = def.criteria.map((c,i) =>
-    `<div class="crit-opt"><input type="radio" name="xcrit" id="xc_${i}" value="${esc(c)}"><label for="xc_${i}">${esc(c)}</label></div>`).join('');
+  const hasCrit = !!(def && def.criteria && def.criteria.length);
+  wrap.classList.toggle('show', !!(def && (hasCrit || def.standard)));
+  if(!def || (!hasCrit && !def.standard)){ std.innerHTML = ''; opts.innerHTML = ''; return; }
+  std.innerHTML = def.standard ? `Standartas: <b>${esc(def.standard)}</b>${hasCrit ? ' — pažymėkite lygį' : ''}` : '';
+  opts.innerHTML = hasCrit ? def.criteria.map((c,i) =>
+    `<div class="crit-opt"><input type="radio" name="xcrit" id="xc_${i}" value="${esc(c)}"><label for="xc_${i}">${esc(c)}</label></div>`).join('') : '';
 }
 function getCheckedCriteria(){
   return [...document.querySelectorAll('#x_crit input:checked')].map(el => el.value);
@@ -1834,7 +1849,7 @@ async function submitTestForm(){
   if(tipas === 'RMC' && !kontrole.value){ markInvalid(kontrole); valid = false; }
   if(!drawing.value.trim()){ markInvalid(drawing); valid = false; }
   if(!test.value){ markInvalid(test); valid = false; }
-  if(test.value && crit.length === 0){ showToast('Pažymėkite priėmimo kriterijų', 'error'); valid = false; }
+  if(test.value && (TEST_DEFS[test.value]?.criteria?.length) && crit.length === 0){ showToast('Pažymėkite priėmimo kriterijų', 'error'); valid = false; }
   if(!welder.value.trim()){ markInvalid(welder); valid = false; }
   if(okVal + nokVal + oknVal < 1){ markInvalid(okEl); markInvalid(nokEl); showToast('Įveskite OK / NOK kiekį', 'error'); valid = false; }
   if(xphotos.length === 0){ document.getElementById('xphotozone').style.borderColor = 'var(--red)'; showToast('Pridėkite bent vieną nuotrauką', 'error'); valid = false; }

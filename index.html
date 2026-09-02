@@ -92,6 +92,14 @@
   .rec-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .rec-btn{font-family:var(--font);font-size:12px;font-weight:600;color:var(--orange-dim);background:var(--surface);border:1px solid var(--orange-dim);border-radius:var(--radius);padding:6px 12px;cursor:pointer;}
   .rec-btn:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
+  .rec-fix{border-left-color:var(--red);border-left-width:5px;background:var(--red-light);}
+  .rec-done{border-left-color:var(--green);border-left-width:5px;}
+  .rec-status-row{margin:2px 0 6px;}
+  .rec-status{display:inline-block;font-size:12.5px;font-weight:800;border-radius:20px;padding:3px 12px;letter-spacing:.02em;}
+  .rec-status.fix{background:var(--red);color:#fff;}
+  .rec-status.done{background:var(--green);color:#fff;}
+  .rec-btn.active-fix{background:var(--red);color:#fff;border-color:var(--red);}
+  .rec-btn.active-done{background:var(--green);color:#fff;border-color:var(--green);}
   .rec-edit{position:absolute;bottom:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.75;box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .rec-edit:hover{opacity:1;border-color:var(--orange-dim);}
   .edit-modal{position:fixed;inset:0;z-index:350;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -463,6 +471,11 @@
         <label class="fopt"><input type="checkbox" data-g="test" value="MT" onchange="applyFilters()"> MT</label>
         <label class="fopt"><input type="checkbox" data-g="test" value="RT" onchange="applyFilters()"> RT</label>
         <label class="fopt"><input type="checkbox" data-g="test" value="UT" onchange="applyFilters()"> UT</label>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup-title">Taisymas</div>
+        <label class="fopt"><input type="checkbox" data-g="taisymas" value="Bus taisoma" onchange="applyFilters()"> Bus taisoma</label>
+        <label class="fopt"><input type="checkbox" data-g="taisymas" value="Pataisyta" onchange="applyFilters()"> Pataisyta</label>
       </div>
       <div class="fgroup">
         <div class="fgroup-title">OK / NOK</div>
@@ -1236,6 +1249,7 @@ async function loadList(){
         ok:         it[col('OK')] ?? '',
         nok:        it[col('NOK')] ?? '',
         okn:        it[col('OKN')] ?? '',
+        taisymas:   it[col('Taisymas')] || '',
         darboTipas: it[col('DarboTipas')] || '',
         testas:     it[col('Testas')] || '',
         standartas: it[col('Standartas')] || '',
@@ -1291,10 +1305,14 @@ function renderList(records){
       shown.map((p, i) => `<div class="thumb" data-path="${esc(p)}" onclick="openLightbox(${vi},${i})"></div>`).join('') +
       (photos.length > 4 ? `<div class="thumb more" onclick="openLightbox(${vi},4)">+${photos.length - 4}</div>` : '')
     }</div>` : '';
-    return `<div class="rec">
+    const statusCls = r.taisymas === 'Bus taisoma' ? ' rec-fix' : r.taisymas === 'Pataisyta' ? ' rec-done' : '';
+    const statusPill = r.taisymas === 'Bus taisoma' ? '<span class="rec-status fix">🔧 Bus taisoma</span>'
+                     : r.taisymas === 'Pataisyta' ? '<span class="rec-status done">✓ Pataisyta</span>' : '';
+    return `<div class="rec${statusCls}">
       <div class="rec-main">
         ${r.iremo ? `<div class="rec-order">${esc(r.iremo)}</div>` : ''}
         <div class="rec-rmc">${esc(r.rmc)||'(be numerio)'}${r.protocol !== '' ? `<span class="rec-proto">Protokolas: ${esc(String(r.protocol))}</span>` : ''}</div>
+        ${statusPill ? `<div class="rec-status-row">${statusPill}</div>` : ''}
         <div class="rec-meta">${parts.map(p=>`<span>${p}</span>`).join('')}</div>
         ${thumbs}
         ${r.komentaras ? `<div class="rec-comment">${esc(r.komentaras)}</div>` : ''}
@@ -1302,6 +1320,8 @@ function renderList(records){
           ? `<a class="rec-folder" href="${r.folderUrl}" target="_blank" rel="noopener">📁 Atidaryti aplanką</a>`
           : `<span class="rec-folder" style="color:var(--muted)">Aplanko nėra</span>`}
         <div class="rec-actions">
+          <button class="rec-btn${r.taisymas==='Bus taisoma'?' active-fix':''}" onclick="setRepairStatus(${vi},'Bus taisoma')">🔧 Bus taisoma</button>
+          <button class="rec-btn${r.taisymas==='Pataisyta'?' active-done':''}" onclick="setRepairStatus(${vi},'Pataisyta')">✓ Pataisyta</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
           <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
@@ -1344,6 +1364,7 @@ function applyFilters(){
   const ops   = getChecked('op');
   const konts = getChecked('kontrole');
   const tests = getChecked('test');
+  const tais  = getChecked('taisymas');
   const oknok = getChecked('oknok');
   const dates = getChecked('date');
   const users = getChecked('user');
@@ -1355,6 +1376,7 @@ function applyFilters(){
     if(ops.length   && !ops.includes(r.busena)) return false;
     if(konts.length && !konts.includes(r.kontrole)) return false;
     if(tests.length && !tests.includes(r.testas)) return false;
+    if(tais.length  && !tais.includes(r.taisymas)) return false;
     if(users.length && !users.includes(r.by))   return false;
     if(oknok.length && !oknok.some(v =>
         (v === 'nok' && Number(r.nok) > 0) ||
@@ -1374,7 +1396,7 @@ function applyFilters(){
       if(to   && d > new Date(to   + 'T23:59:59')) return false;
     }
     if(q){
-      const words = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.komentaras, r.by]
+      const words = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.taisymas, r.komentaras, r.by]
         .join(' ').toLowerCase().split(/[\s\-\/_.,;:]+/).filter(Boolean);
       if(!q.split(/\s+/).filter(Boolean).every(t => words.some(w => w.startsWith(t)))) return false;
     }
@@ -1382,7 +1404,7 @@ function applyFilters(){
   });
   renderList(list);
   updateUserBtn();
-  const n = tipas.length + ops.length + konts.length + tests.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
+  const n = tipas.length + ops.length + konts.length + tests.length + tais.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
   document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
 }
 
@@ -1444,7 +1466,18 @@ async function uploadExtraPhotos(input){
     loadList();
   }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
 }
-function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
+
+// Mark a record as "Bus taisoma" / "Pataisyta" (toggles off if already set)
+async function setRepairStatus(vi, status){
+  const r = _viewRecords[vi]; if(!r) return;
+  const newStatus = (r.taisymas === status) ? '' : status;
+  try{
+    const token = await getSpToken();
+    await updateListItem(token, r.itemId, { Taisymas: newStatus });
+    showToast(newStatus ? '✓ Pažymėta: ' + newStatus : '✓ Žyma nuimta', 'success');
+    loadList();
+  }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
+}
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
 function numDash(el){ el.value = el.value.replace(/\./g, '-').replace(/[^0-9-]/g, ''); }
 const MAX_PHOTOS = 15;

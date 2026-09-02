@@ -478,6 +478,9 @@
         <label class="fopt"><input type="checkbox" data-g="test" value="MT" onchange="applyFilters()"> MT</label>
         <label class="fopt"><input type="checkbox" data-g="test" value="RT" onchange="applyFilters()"> RT</label>
         <label class="fopt"><input type="checkbox" data-g="test" value="UT" onchange="applyFilters()"> UT</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="Kopėčių patikra" onchange="applyFilters()"> Kopėčių patikra</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="Kėlimo įrenginių patikra" onchange="applyFilters()"> Kėlimo įrenginių patikra</label>
+        <label class="fopt"><input type="checkbox" data-g="test" value="HB" onchange="applyFilters()"> HB</label>
       </div>
       <div class="fgroup">
         <div class="fgroup-title">Taisymas</div>
@@ -1510,6 +1513,7 @@ async function cycleRepairStatus(vi){
     loadList();
   }catch(e){ showToast('Klaida (Taisymas): ' + e.message, 'error', 8000); }
 }
+function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
 function numDash(el){ el.value = el.value.replace(/\./g, '-').replace(/[^0-9-]/g, ''); }
 const MAX_PHOTOS = 15;

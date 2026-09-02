@@ -1324,7 +1324,7 @@ function renderList(records){
         <div class="rec-actions">
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
-          <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' active-fix':r.taisymas==='Pataisyta'?' active-done':''}" onclick="cycleRepairStatus(${vi})">${r.taisymas==='Bus taisoma'?'🔧 Bus taisoma':r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Taisymas'}</button>
+          <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' active-fix':r.taisymas==='Pataisyta'?' active-done':''}" onclick="cycleRepairStatus(${vi})">${r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Bus taisoma'}</button>
           <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
         </div>
       </div>
@@ -1470,15 +1470,34 @@ async function uploadExtraPhotos(input){
 
 // One button cycles: none → Bus taisoma → Pataisyta → none
 const NEXT_REPAIR = { '': 'Bus taisoma', 'Bus taisoma': 'Pataisyta', 'Pataisyta': '' };
+// Robust single-field write (falls back to the display name so a manually-added column still writes)
+async function setListField(token, id, displayName, value){
+  const map = await getFieldMap(token);
+  const type = await getListEntityType(token);
+  const internal = map[displayName.toLowerCase()] || displayName;
+  const body = { '__metadata': { type } };
+  body[internal] = value;
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items(${id})`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose', 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok){ const t = await r.text(); let m = r.status; try{ m = JSON.parse(t)?.error?.message?.value || r.status; }catch{}
+    console.error('[setListField] HTTP', r.status, internal, t); throw new Error(m); }
+  return true;
+}
 async function cycleRepairStatus(vi){
   const r = _viewRecords[vi]; if(!r) return;
   const newStatus = NEXT_REPAIR[r.taisymas] ?? 'Bus taisoma';
   try{
     const token = await getSpToken();
-    await updateListItem(token, r.itemId, { Taisymas: newStatus });
+    await setListField(token, r.itemId, 'Taisymas', newStatus);
     showToast(newStatus ? '✓ Pažymėta: ' + newStatus : '✓ Žyma nuimta', 'success');
     loadList();
-  }catch(e){ showToast('Klaida: ' + e.message, 'error'); }
+  }catch(e){ showToast('Klaida (Taisymas): ' + e.message, 'error', 8000); }
 }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
 function numDash(el){ el.value = el.value.replace(/\./g, '-').replace(/[^0-9-]/g, ''); }

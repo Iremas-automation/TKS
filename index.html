@@ -74,7 +74,6 @@
   .rec-proto{display:inline-block;margin-left:10px;font-size:12px;font-weight:700;color:var(--orange-dim);background:rgba(232,100,10,0.1);border-radius:20px;padding:2px 10px;vertical-align:middle;white-space:nowrap;}
   .rec-badges{display:flex;flex-direction:column;gap:8px;width:82px;flex-shrink:0;}
   .rec-addphoto{padding:6px 10px;}
-  .rec-repair{margin-left:auto;}
   .photo-src{position:fixed;inset:0;z-index:360;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
   .photo-src-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;box-shadow:var(--shadow);}
   .photo-src-card button{font-family:var(--font);font-size:15px;font-weight:600;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;}
@@ -99,12 +98,15 @@
   .rec-status{display:inline-block;font-size:12.5px;font-weight:800;border-radius:20px;padding:3px 12px;letter-spacing:.02em;}
   .rec-status.fix{background:var(--red);color:#fff;}
   .rec-status.done{background:var(--green);color:#fff;}
+  .rec-status.coord{background:#2563eb;color:#fff;}
+  .rec-status.coord-done{background:#0d9488;color:#fff;}
   .rec-btn.active-fix{background:var(--red);color:#fff;border-color:var(--red);}
   .rec-btn.active-done{background:var(--green);color:#fff;border-color:var(--green);}
-  .rec-repair.to-done{border-color:var(--green);color:var(--green);}
-  .rec-repair.to-done:hover{background:var(--green);color:#fff;border-color:var(--green);}
-  .rec-repair.is-done{opacity:.5;cursor:default;color:var(--green);border-color:var(--green);}
-  .rec-repair.is-done:hover{background:var(--surface);color:var(--green);border-color:var(--green);}
+  .rec-btn.to-done{border-color:var(--green);color:var(--green);}
+  .rec-btn.to-done:hover{background:var(--green);color:#fff;border-color:var(--green);}
+  .rec-btn.is-done{opacity:.5;cursor:default;color:var(--green);border-color:var(--green);}
+  .rec-btn.is-done:hover{background:var(--surface);color:var(--green);border-color:var(--green);}
+  .rec-derinimas{margin-left:auto;}
   .rec-edit{position:absolute;bottom:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.75;box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .rec-edit:hover{opacity:1;border-color:var(--orange-dim);}
   .edit-modal{position:fixed;inset:0;z-index:350;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -171,6 +173,7 @@
     .filter-toggle{display:block;}
     .rec-actions{gap:8px;}
     .rec-repair{margin-left:0;}
+    .rec-derinimas{margin-left:0;}
     .rec-actions .rec-btn{flex:1 1 auto;justify-content:center;}
     .rec-actions .rec-addphoto{flex:0 0 auto;}
   }
@@ -493,6 +496,11 @@
         <label class="fopt"><input type="checkbox" data-g="taisymas" value="Pataisyta" onchange="applyFilters()"> Pataisyta</label>
       </div>
       <div class="fgroup">
+        <div class="fgroup-title">Derinimas su užsakovu</div>
+        <label class="fopt"><input type="checkbox" data-g="derinimas" value="Derinama su užsakovu" onchange="applyFilters()"> Derinama su užsakovu</label>
+        <label class="fopt"><input type="checkbox" data-g="derinimas" value="Suderinta" onchange="applyFilters()"> Suderinta</label>
+      </div>
+      <div class="fgroup">
         <div class="fgroup-title">OK / NOK</div>
         <label class="fopt"><input type="checkbox" data-g="oknok" value="nok" onchange="applyFilters()"> Yra NOK</label>
         <label class="fopt"><input type="checkbox" data-g="oknok" value="ok" onchange="applyFilters()"> Tik OK (be NOK)</label>
@@ -563,6 +571,7 @@
       </div>
       <div class="field"><label>OK (su nuokrypiais)</label><input type="text" id="e_okn" inputmode="numeric" maxlength="4" oninput="numOnly(this)"></div>
       <div class="field"><label>Taisymas</label><select id="e_taisymas"><option value="">—</option><option>Bus taisoma</option><option>Pataisyta</option></select></div>
+      <div class="field"><label>Derinimas su užsakovu</label><select id="e_derinimas"><option value="">—</option><option>Derinama su užsakovu</option><option>Suderinta</option></select></div>
       <div class="field"><label>Komentaras</label><textarea id="e_komentaras" rows="3" maxlength="1000"></textarea></div>
     </div>
     <div class="edit-foot">
@@ -1271,6 +1280,7 @@ async function loadList(){
         nok:        it[col('NOK')] ?? '',
         okn:        it[col('OKN')] ?? '',
         taisymas:   it[col('Taisymas')] || '',
+        derinimas:  it[col('Derinimas')] || '',
         darboTipas: it[col('DarboTipas')] || '',
         testas:     it[col('Testas')] || '',
         standartas: it[col('Standartas')] || '',
@@ -1327,8 +1337,10 @@ function renderList(records){
       (photos.length > 4 ? `<div class="thumb more" onclick="openLightbox(${vi},4)">+${photos.length - 4}</div>` : '')
     }</div>` : '';
     const statusCls = r.taisymas === 'Bus taisoma' ? ' rec-fix' : r.taisymas === 'Pataisyta' ? ' rec-done' : '';
-    const statusPill = r.taisymas === 'Bus taisoma' ? '<span class="rec-status fix">🔧 Bus taisoma</span>'
-                     : r.taisymas === 'Pataisyta' ? '<span class="rec-status done">✓ Pataisyta</span>' : '';
+    const statusPill = (r.taisymas === 'Bus taisoma' ? '<span class="rec-status fix">🔧 Bus taisoma</span>'
+                     : r.taisymas === 'Pataisyta' ? '<span class="rec-status done">✓ Pataisyta</span>' : '')
+                     + (r.derinimas === 'Derinama su užsakovu' ? '<span class="rec-status coord">🤝 Derinama su užsakovu</span>'
+                     : r.derinimas === 'Suderinta' ? '<span class="rec-status coord-done">✓ Suderinta</span>' : '');
     return `<div class="rec${statusCls}">
       <div class="rec-main">
         ${r.iremo ? `<div class="rec-order">${esc(r.iremo)}</div>` : ''}
@@ -1343,6 +1355,7 @@ function renderList(records){
         <div class="rec-actions">
           <button class="rec-btn" onclick="newFromRecord(${vi},'form')">➕ Matavimas</button>
           <button class="rec-btn" onclick="newFromRecord(${vi},'tests')">➕ NDT</button>
+          <button class="rec-btn rec-derinimas${r.derinimas==='Derinama su užsakovu'?' to-done':''}${r.derinimas==='Suderinta'?' is-done':''}" ${r.derinimas==='Suderinta'?'disabled':''} onclick="cycleDerinimas(${vi})">${r.derinimas==='Derinama su užsakovu'?'✓ Suderinta':r.derinimas==='Suderinta'?'✓ Suderinta':'🤝 Derinama su užsakovu'}</button>
           <button class="rec-btn rec-repair${r.taisymas==='Bus taisoma'?' to-done':''}${r.taisymas==='Pataisyta'?' is-done':''}" ${r.taisymas==='Pataisyta'?'disabled':''} onclick="cycleRepairStatus(${vi})">${r.taisymas==='Bus taisoma'?'✓ Pataisyta':r.taisymas==='Pataisyta'?'✓ Pataisyta':'🔧 Bus taisoma'}</button>
           <button class="rec-btn rec-addphoto" onclick="addPhotosToRecord(${vi})" title="Pridėti nuotraukų">＋📷</button>
         </div>
@@ -1385,6 +1398,7 @@ function applyFilters(){
   const konts = getChecked('kontrole');
   const tests = getChecked('test');
   const tais  = getChecked('taisymas');
+  const derin = getChecked('derinimas');
   const oknok = getChecked('oknok');
   const dates = getChecked('date');
   const users = getChecked('user');
@@ -1397,6 +1411,7 @@ function applyFilters(){
     if(konts.length && !konts.includes(r.kontrole)) return false;
     if(tests.length && !tests.includes(r.testas)) return false;
     if(tais.length  && !tais.includes(r.taisymas)) return false;
+    if(derin.length && !derin.includes(r.derinimas)) return false;
     if(users.length && !users.includes(r.by))   return false;
     if(oknok.length && !oknok.some(v =>
         (v === 'nok' && Number(r.nok) > 0) ||
@@ -1416,7 +1431,7 @@ function applyFilters(){
       if(to   && d > new Date(to   + 'T23:59:59')) return false;
     }
     if(q){
-      const words = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.taisymas, r.komentaras, r.by]
+      const words = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.taisymas, r.derinimas, r.komentaras, r.by]
         .join(' ').toLowerCase().split(/[\s\-\/_.,;:]+/).filter(Boolean);
       if(!q.split(/\s+/).filter(Boolean).every(t => words.some(w => w.startsWith(t)))) return false;
     }
@@ -1424,7 +1439,7 @@ function applyFilters(){
   });
   renderList(list);
   updateUserBtn();
-  const n = tipas.length + ops.length + konts.length + tests.length + tais.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
+  const n = tipas.length + ops.length + konts.length + tests.length + tais.length + derin.length + oknok.length + dates.length + users.length + ((from || to) ? 1 : 0);
   document.getElementById('filterToggle').textContent = n ? `Filtrai (${n})` : 'Filtrai';
 }
 
@@ -1518,6 +1533,19 @@ async function cycleRepairStatus(vi){
     showToast('✓ Pažymėta: ' + newStatus, 'success');
     loadList();
   }catch(e){ showToast('Klaida (Taisymas): ' + e.message, 'error', 8000); }
+}
+// Second button: none → Derinama su užsakovu → Suderinta, then stops. Removal only via edit window.
+const NEXT_DERINIMAS = { '': 'Derinama su užsakovu', 'Derinama su užsakovu': 'Suderinta' };
+async function cycleDerinimas(vi){
+  const r = _viewRecords[vi]; if(!r) return;
+  const newStatus = NEXT_DERINIMAS[r.derinimas];
+  if(!newStatus) return;                    // already Suderinta → button does nothing
+  try{
+    const token = await getSpToken();
+    await setListField(token, r.itemId, 'Derinimas', newStatus);
+    showToast('✓ Pažymėta: ' + newStatus, 'success');
+    loadList();
+  }catch(e){ showToast('Klaida (Derinimas): ' + e.message, 'error', 8000); }
 }
 function safeSeg(v){ return (v || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_').trim(); }
 function numOnly(el){ el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
@@ -2035,6 +2063,7 @@ function openEdit(vi){
   document.getElementById('e_okn').value         = (r.okn === '' || r.okn == null) ? '' : r.okn;
   document.getElementById('e_komentaras').value  = r.komentaras || '';
   document.getElementById('e_taisymas').value    = r.taisymas || '';
+  document.getElementById('e_derinimas').value   = r.derinimas || '';
   document.getElementById('editModal').style.display = 'flex';
 }
 function closeEdit(){ document.getElementById('editModal').style.display = 'none'; _editId = null; }
@@ -2097,7 +2126,8 @@ async function saveEdit(){
       NOK:         Number.isFinite(nokN) ? nokN : 0,
       OKN:         Number.isFinite(oknN) ? oknN : 0,
       Komentaras:  document.getElementById('e_komentaras').value.trim(),
-      Taisymas:    document.getElementById('e_taisymas').value
+      Taisymas:    document.getElementById('e_taisymas').value,
+      Derinimas:   document.getElementById('e_derinimas').value
     };
     if(folderPath) fields.FolderPath = folderPath;
     await updateListItem(token, _editId, fields);

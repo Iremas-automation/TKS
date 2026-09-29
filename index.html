@@ -1057,11 +1057,11 @@ async function deleteFolderIfEmpty(token, path){
     const nFolders = (d.Folders && d.Folders.results ? d.Folders.results.length : 0);
     const nFiles   = (d.Files   && d.Files.results   ? d.Files.results.length   : 0);
     if(nFolders > 0 || nFiles > 0) return false;   // not empty — keep it
-    const del = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${path}')`, {
+    const del = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${path}')/recycle`, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token, 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
     });
-    if(!del.ok) console.warn('[deleteFolderIfEmpty] delete HTTP', del.status, path);
+    if(!del.ok) console.warn('[deleteFolderIfEmpty] recycle HTTP', del.status, path);
     return del.ok;
   }catch(e){ console.warn('[deleteFolderIfEmpty]', path, e); return false; }
 }
@@ -2210,9 +2210,9 @@ async function deleteRecord(){
   }
 }
 async function deleteListItem(token, id){
-  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items(${id})`, {
+  const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items(${id})/recycle`, {
     method: 'POST',
-    headers: { Authorization: 'Bearer ' + token, 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
   });
   if(!r.ok){ const t = await r.text(); let m = r.status; try{ m = JSON.parse(t)?.error?.message?.value || r.status; }catch{} throw new Error('trynimo klaida: ' + m); }
   return true;

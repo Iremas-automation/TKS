@@ -992,7 +992,32 @@ async function updateListItem(token, id, fields){
   return true;
 }
 
-// Rename a SharePoint folder (used when the RMC number changes during edit).
+// ── Permissions — guard destructive ops for users without full rights ──
+const SP_PERM = { ADD: 2, EDIT: 4, DELETE: 8 };   // SPBasePermissions low bits
+function hasPerm(low, bit){ return (Number(low) & bit) === bit; }
+let _listPerms = null;
+async function getListPerms(token){
+  if(_listPerms) return _listPerms;
+  try{
+    const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/effectiveBasePermissions`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) return null;
+    const d = (await r.json()).d; const ebp = d.EffectiveBasePermissions || d;
+    _listPerms = { edit: hasPerm(ebp.Low, SP_PERM.EDIT), del: hasPerm(ebp.Low, SP_PERM.DELETE) };
+    return _listPerms;
+  }catch(e){ console.warn('[getListPerms]', e); return null; }
+}
+async function getFolderPerms(token, folderPath){
+  try{
+    const r = await fetch(`${SP_SITE_URL}/_api/web/GetFolderByServerRelativePath(decodedurl='${folderPath}')/ListItemAllFields/effectiveBasePermissions`, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
+    });
+    if(!r.ok) return null;
+    const d = (await r.json()).d; const ebp = d.EffectiveBasePermissions || d;
+    return { add: hasPerm(ebp.Low, SP_PERM.ADD), del: hasPerm(ebp.Low, SP_PERM.DELETE) };
+  }catch(e){ console.warn('[getFolderPerms]', e); return null; }
+}
 // Uses the JSON-body MoveFolderByPath utility to avoid URL-encoding pitfalls.
 async function renameSpFolder(token, oldPath, newPath){
   try{
@@ -1483,6 +1508,8 @@ async function uploadExtraPhotos(input){
   showToast('Keliamos nuotraukos…', 'info', 8000);
   try{
     const token = await getSpToken();
+    const fp = await getFolderPerms(token, r.folder);
+    if(!fp || !fp.add){ showToast('Neturite teisių įkelti nuotraukų į šį aplanką', 'error', 8000); return; }
     const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
     const prefix = safeSeg(r.rmc) || 'foto';
     const existing = parsePhotoNames(r.photoNames);
@@ -1529,6 +1556,8 @@ async function cycleRepairStatus(vi){
   if(!newStatus) return;                    // already Pataisyta → button does nothing
   try{
     const token = await getSpToken();
+    const perms = await getListPerms(token);
+    if(!perms || !perms.edit){ showToast('Neturite teisių keisti įrašų', 'error'); return; }
     await setListField(token, r.itemId, 'Taisymas', newStatus);
     showToast('✓ Pažymėta: ' + newStatus, 'success');
     loadList();
@@ -1542,6 +1571,8 @@ async function cycleDerinimas(vi){
   if(!newStatus) return;                    // already Suderinta → button does nothing
   try{
     const token = await getSpToken();
+    const perms = await getListPerms(token);
+    if(!perms || !perms.edit){ showToast('Neturite teisių keisti įrašų', 'error'); return; }
     await setListField(token, r.itemId, 'Derinimas', newStatus);
     showToast('✓ Pažymėta: ' + newStatus, 'success');
     loadList();
@@ -2073,6 +2104,8 @@ async function saveEdit(){
   btn.disabled = true; btn.textContent = 'Saugoma…';
   try{
     const token = await getSpToken();
+    const perms = await getListPerms(token);
+    if(!perms || !perms.edit) throw new Error('neturite teisių redaguoti įrašų (kreipkitės į administratorių)');
     const okN = parseInt(document.getElementById('e_ok').value, 10);
     const nokN = parseInt(document.getElementById('e_nok').value, 10);
     const oknN = parseInt(document.getElementById('e_okn').value, 10);
@@ -2089,6 +2122,9 @@ async function saveEdit(){
       const newBrezPath = `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}/${brezSeg}`;
       const newFolder = `${newBrezPath}/${leaf}`;
       if(newFolder !== folderPath){
+        // guard: moving the folder needs Add + Delete on the library — check BEFORE touching anything
+        const fp = await getFolderPerms(token, folderPath);
+        if(!fp || !fp.add || !fp.del) throw new Error('neturite teisių perkelti aplanko – įrašas neišsaugotas');
         await ensureSpFolder(token, SP_FOLDER_BASE);
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}`);
         await ensureSpFolder(token, `${SP_FOLDER_BASE}/${orderSeg}/${rmcSeg}`);
@@ -2151,6 +2187,14 @@ async function deleteRecord(){
   try{
     const token = await getSpToken();
     const folder = _editRec ? _editRec.folder : '';
+    // Guard: verify BOTH list-item delete and folder delete rights BEFORE deleting anything,
+    // so a partial-rights user can't leave the list line or the folder half-deleted.
+    const perms = await getListPerms(token);
+    if(!perms || !perms.del) throw new Error('neturite teisių trinti įrašų (kreipkitės į administratorių)');
+    if(folder){
+      const fp = await getFolderPerms(token, folder);
+      if(!fp || !fp.del) throw new Error('neturite teisių trinti aplanko – įrašas neištrintas');
+    }
     await deleteListItem(token, _editId);
     if(folder && !await folderInUse(token, folder)){
       await recycleFolder(token, folder);
@@ -2160,7 +2204,7 @@ async function deleteRecord(){
     showToast('✓ Įrašas ištrintas', 'success');
     loadList();
   }catch(e){
-    showToast('Klaida: ' + e.message, 'error');
+    showToast('Klaida: ' + e.message, 'error', 8000);
   }finally{
     btn.disabled = false; btn.textContent = 'Ištrinti';
   }

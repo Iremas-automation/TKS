@@ -1080,8 +1080,11 @@ function stripRich(raw){
   return String(raw)
     .replace(/<\/(div|p)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n')   // keep line breaks
     .replace(/<[^>]*>/g, '')                                          // drop remaining tags (ExternalClass wrappers etc.)
-    .replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))      // numeric entities, e.g. &#58; → :
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16))) // hex entities
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/g, "'").replace(/&apos;/gi, "'")
+    .replace(/&amp;/gi, '&')                                          // decode &amp; LAST so we don't double-decode
     .replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ')
     .trim();
 }

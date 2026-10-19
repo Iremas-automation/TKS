@@ -559,7 +559,7 @@
       <div class="field"><label>Operacija</label><select id="e_busena"><option value="">—</option><option>Paruošimas</option><option>Mechaninis</option><option>Surinkimas</option><option>Prieš suvirinimą</option><option>Suvirinimas</option><option>Dažymas</option></select></div>
       <div class="field"><label>Kontrolė</label><select id="e_kontrole"><option value="">—</option><option>Galutinis</option><option>Tarpinis</option></select></div>
       <div class="field"><label>Detalės brėžinio numeris</label><input type="text" id="e_brezinys" maxlength="40" autocomplete="off"></div>
-      <div class="field"><label>Bandymas</label><select id="e_test"><option value="">—</option><option>VT</option><option>PT</option><option>MT</option><option>RT</option><option>UT</option></select></div>
+      <div class="field"><label>Bandymas</label><select id="e_test"><option value="">—</option><option>VT</option><option>PT</option><option>MT</option><option>RT</option><option>UT</option><option>Kopėčių patikra</option><option>Kėlimo įrenginių patikra</option><option>HB</option></select></div>
       <div class="grid2">
         <div class="field"><label>Standartas</label><input type="text" id="e_standartas" autocomplete="off"></div>
         <div class="field"><label>Kriterijus</label><input type="text" id="e_kriterijus" autocomplete="off"></div>
@@ -2077,18 +2077,28 @@ function dismissResubmit(){ document.getElementById('resubmit').style.display = 
 
 // ─────────── EDIT RECORD ───────────
 let _editId = null, _editRec = null;
+// Set a <select>'s value; if the stored value isn't among its options, add it first
+// so opening+saving an edit never silently wipes a value the dropdown doesn't list.
+function setSelVal(id, val){
+  const el = document.getElementById(id); if(!el) return;
+  val = val || '';
+  if(val && !Array.from(el.options).some(o => o.value === val)){
+    const o = document.createElement('option'); o.value = val; o.textContent = val; el.appendChild(o);
+  }
+  el.value = val;
+}
 function openEdit(vi){
   const r = _viewRecords[vi]; if(!r) return;
   _editId = r.itemId; _editRec = r;
   document.getElementById('e_iremo').value      = (r.iremo || '').replace(/^I-/, '');
   document.getElementById('e_rmc').value         = (r.rmc || '').replace(/^RMC-/, '');
-  document.getElementById('e_darboTipas').value  = r.darboTipas || '';
-  document.getElementById('e_tipas').value       = r.tipas || '';
+  setSelVal('e_darboTipas', r.darboTipas);
+  setSelVal('e_tipas', r.tipas);
   document.getElementById('e_pavadinimas').value = r.pavadinimas || '';
-  document.getElementById('e_busena').value      = r.busena || '';
-  document.getElementById('e_kontrole').value    = r.kontrole || '';
+  setSelVal('e_busena', r.busena);
+  setSelVal('e_kontrole', r.kontrole);
   document.getElementById('e_brezinys').value    = r.brezinys || '';
-  document.getElementById('e_test').value        = r.testas || '';
+  setSelVal('e_test', r.testas);
   document.getElementById('e_standartas').value  = r.standartas || '';
   document.getElementById('e_kriterijus').value  = r.kriterijus || '';
   document.getElementById('e_welder').value      = r.welder || '';
@@ -2096,8 +2106,8 @@ function openEdit(vi){
   document.getElementById('e_nok').value         = (r.nok === '' || r.nok == null) ? '' : r.nok;
   document.getElementById('e_okn').value         = (r.okn === '' || r.okn == null) ? '' : r.okn;
   document.getElementById('e_komentaras').value  = r.komentaras || '';
-  document.getElementById('e_taisymas').value    = r.taisymas || '';
-  document.getElementById('e_derinimas').value   = r.derinimas || '';
+  setSelVal('e_taisymas', r.taisymas);
+  setSelVal('e_derinimas', r.derinimas);
   document.getElementById('editModal').style.display = 'flex';
 }
 function closeEdit(){ document.getElementById('editModal').style.display = 'none'; _editId = null; }

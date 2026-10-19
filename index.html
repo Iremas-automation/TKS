@@ -1286,11 +1286,17 @@ async function loadList(){
     const token = await getSpToken();
     const map = await getFieldMap(token);
     const col = d => map[d.toLowerCase()] || d;
-    const r = await fetch(`${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$top=500&$orderby=Created desc`, {
-      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' }
-    });
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const items = (await r.json()).d.results;
+    // Page through ALL items (SharePoint caps each response ~5000) so older records aren't missed
+    let items = [];
+    let next = `${SP_SITE_URL}/_api/web/lists/getbytitle('${SP_LIST_NAME}')/items?$top=5000&$orderby=Created desc`;
+    let guard = 0;
+    while(next && guard++ < 50){
+      const r = await fetch(next, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json;odata=verbose' } });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const j = (await r.json()).d;
+      items = items.concat(j.results || []);
+      next = j.__next || null;
+    }
     const origin = new URL(SP_SITE_URL).origin;
     _allRecords = items.map(it => {
       const folder = it[col('FolderPath')] || '';

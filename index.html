@@ -1467,7 +1467,7 @@ function applyFilters(){
     if(q){
       const words = [r.rmc, r.iremo, String(r.protocol), r.tipas, r.pavadinimas, r.busena, r.kontrole, r.brezinys, r.darboTipas, r.testas, r.welder, r.taisymas, r.derinimas, r.komentaras, r.by]
         .join(' ').toLowerCase().split(/[\s\-\/_.,;:]+/).filter(Boolean);
-      if(!q.split(/\s+/).filter(Boolean).every(t => words.some(w => w.startsWith(t)))) return false;
+      if(!q.split(/[\s\-\/_.,;:]+/).filter(Boolean).every(t => words.some(w => w.startsWith(t)))) return false;
     }
     return true;
   });

@@ -2,6 +2,12 @@
 <html lang="lt">
 <head>
 <meta charset="UTF-8">
+<script>
+  // Senas GitHub Pages adresas -> naujas domenas (tik github.io, kad kontrole.iremas.lt nenukreiptų savęs)
+  if (location.hostname.endsWith('github.io')) {
+    location.replace('https://kontrole.iremas.lt/' + location.search + location.hash);
+  }
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>TKS – MBL</title>

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>TKS – MBL</title>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
 <style>
@@ -751,7 +752,7 @@
 const DEV_SKIP_LOGIN = false;   // ⚠ DEV ONLY — set to true to skip MS login (and SharePoint upload) while working on the UI.
 const CLIENT_ID      = '413e4a48-f490-47b2-a36d-3d4039c87f9e';   // TKS app registration
 const TENANT_ID      = 'f300c84f-87f0-4d9e-8284-1e36dbe06fbe';
-const REDIRECT_URI   = 'https://iremas-automation.github.io/TKS/'; // must match this page's URL AND be added to the app registration
+const REDIRECT_URI   = 'https://kontrole.iremas.lt/'; // must match this page's URL AND be added to the app registration
 const SP_SITE_URL    = 'https://achemosgrupelt.sharepoint.com/sites/MBL';
 const SP_FOLDER_BASE = '/sites/MBL/Bendrai naudojami dokumentai/Planavimas/RMC'; // photos go in <base>/<RMC numeris>/
 const SP_SCOPES      = ['https://achemosgrupelt.sharepoint.com/AllSites.Read', 'https://achemosgrupelt.sharepoint.com/AllSites.Write'];
